@@ -1,0 +1,2 @@
+freqtrade>=2025.1
+anthropic>=2.6
