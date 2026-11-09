@@ -30,7 +30,7 @@ CFG=(--config user_data/config.json)
 (cd ga && "../$PY" build_page.py)
 
 if [ "${GIT_PUSH:-0}" = "1" ]; then
-  git add ga/dashboard.html ga/live/state.json ga/live/account.json
+  git add -f ga/dashboard.html ga/live/state.json ga/live/account.json
   git commit -m "持续进化：$(date -u +%F) 更新" || true
   git push || echo "推送失败"
 fi

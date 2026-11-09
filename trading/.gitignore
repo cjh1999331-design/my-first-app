@@ -9,3 +9,7 @@ __pycache__/
 .venv/
 ga/results.json
 ga/replay.json
+ga/live/state.json
+ga/live/state.tmp
+ga/live/account.json
+ga/live/daily.log
