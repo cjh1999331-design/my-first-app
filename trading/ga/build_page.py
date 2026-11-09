@@ -63,6 +63,17 @@ def main():
                 "active": team(st["active"]), "challenger": team(st["challenger"]), "changes": st["changes"],
                 "log": [{"date": l["date"], "gen": l["gen"], "best": l["best"]} for l in st["log"]],
                 "segments": [{"start": g["start"][:10], "ids": g["team"]["ids"]} for g in st["segments"]]}
+        from engine import SPECIES
+        from rolling import STAGNATION
+        live["species"] = {sp: SPECIES[sp] for sp in st["pop"]}
+        lg = st["log"][-1] if st["log"] else {}
+        if lg.get("div"):
+            tf = lg.get("tfs", {})
+            ev = st.get("events", [])
+            live["diversity"] = (f" 防止策略越来越固定：训练窗口只用最近 {st['config'].get('train_years', 0):g} 年（现在从 {lg.get('train_start')} 起），"
+                                 f"越近的数据权重越大；每个物种 {st['config']['per_species']} 个个体，相近个体分摊得分，每个周期都保种；"
+                                 f"冠军 {STAGNATION} 代不换人就大灭绝重启（已发生 {len(ev)} 次）；上线组合要求策略之间日收益相关性不超过 0.6。"
+                                 f"当前种群周期分布：" + "、".join(f"{k} {v}" for k, v in sorted(tf.items(), key=lambda x: -x[1])) + "。")
     page = {"universe": uni, "meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
             "oos_best": d["oos_best"], "final_population": d["final_population"], "history": d["history"],
             "inds": inds, "rounds": rounds, "replay": replay, "live": live}

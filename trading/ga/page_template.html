@@ -5,7 +5,7 @@
   :root {
     --bg: #f4f6f8; --panel: #ffffff; --soft: #f7f9fb; --fg: #121820; --muted: #66717f; --line: #e3e7ec; --grid: #eef1f4;
     --accent: #1d5fd1; --good: #0f8a54; --bad: #d23b30; --ring: #121820; --link: rgba(90,104,122,.2); --hl: #1d5fd1;
-    --sp-vol_breakout: #2f6fd0; --sp-ma_cross: #8a4fd8; --sp-rsi_revert: #e08a1e; --sp-channel: #1f9d63;
+    --sp-vol_breakout: #2f6fd0; --sp-ma_cross: #8a4fd8; --sp-rsi_revert: #e08a1e; --sp-channel: #1f9d63; --sp-vol_surge: #d0457a; --sp-rel_strength: #1b9aaa;
     --tip: #ffffff; --shadow: 0 8px 28px rgba(20,30,50,.12);
     --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -13,12 +13,12 @@
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     --bg: #0c1015; --panel: #141a21; --soft: #10151b; --fg: #e8edf2; --muted: #8f9bab; --line: #232c37; --grid: #1a222c;
     --accent: #5b9cff; --good: #35c97f; --bad: #ff6a5c; --ring: #e8edf2; --link: rgba(150,165,185,.16); --hl: #5b9cff;
-    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
+    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985; --sp-vol_surge: #f06e9e; --sp-rel_strength: #3cc3d4;
     --tip: #1a222b; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; } }
   :root[data-theme="dark"] {
     --bg: #0c1015; --panel: #141a21; --soft: #10151b; --fg: #e8edf2; --muted: #8f9bab; --line: #232c37; --grid: #1a222c;
     --accent: #5b9cff; --good: #35c97f; --bad: #ff6a5c; --ring: #e8edf2; --link: rgba(150,165,185,.16); --hl: #5b9cff;
-    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
+    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985; --sp-vol_surge: #f06e9e; --sp-rel_strength: #3cc3d4;
     --tip: #1a222b; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; }
   body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
   body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
@@ -285,7 +285,8 @@
 const D = __DATA__;
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const SP = Object.keys(D.meta.species);
-const SPN = D.meta.species;
+const SPN = { ...D.meta.species, ...((D.live && D.live.species) || {}) };
+const LSP = D.live && D.live.species ? Object.keys(D.live.species) : SP;
 const spColor = (sp) => css('--sp-' + sp);
 const I = new Map(D.inds.map((r) => { const o = { id: r[0], sp: SP[r[1]], gen: r[2], origin: r[3], parents: r[4], desc: r[5], tr: r[6], oo: r[7], pass: !!r[8], until: r[9], champN: r[10], folds: r[11] }; return [o.id, o]; }));
 const ALL = [...I.values()];
@@ -688,7 +689,7 @@ function renderLive() {
   document.getElementById('live').hidden = false;
   document.getElementById('live-title').textContent = `持续进化 · 第 ${L.gen} 代`;
   document.getElementById('live-now').textContent = `更新到 ${L.now}`;
-  document.getElementById('live-sub').textContent = `从 ${L.start} 开始，每一步把最新行情加进训练窗口，接着上一次的种群进化 5 代。各物种冠军组成挑战者，先影子交易 ${L.probation} 天，同期收益跑赢当前上线组合才替换，模拟账户只由上线组合交易。`;
+  document.getElementById('live-sub').textContent = `从 ${L.start} 开始，每一步把最新行情加进训练窗口，接着上一次的种群进化 5 代。各物种冠军组成挑战者，先影子交易 ${L.probation} 天，同期收益跑赢当前上线组合才替换，模拟账户只由上线组合交易。${L.diversity || ''}`;
   const teamEl = (t, isCh) => {
     if (!t) return el('p', { className: 'sub', textContent: isCh ? '暂无（冠军和上线组合相同）' : '—' });
     const items = t.items.map((i) => el('div', {}, [el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${i.species})` }), `${i.id} · ${i.desc.split(' · ').slice(0, 2).join(' · ')}`])]));
@@ -714,7 +715,7 @@ function renderLive() {
   const x = d3.scaleUtc().domain(d3.extent(pts, (p) => p.t)).range([m.l, W - m.r]);
   svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
   svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(W / 110))).tickFormat(d3.utcFormat('%y-%m')).tickSize(0).tickPadding(8)).call(axisStyle);
-  SP.forEach((sp) => { const ser = pts.filter((p) => p.best[sp] !== undefined); if (ser.length > 1) svg.append('path').datum(ser).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 1.8).attr('d', d3.line().x((p) => x(p.t)).y((p) => y(p.best[sp]))); });
+  LSP.forEach((sp) => { const ser = pts.filter((p) => p.best[sp] !== undefined); if (ser.length > 1) svg.append('path').datum(ser).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 1.8).attr('d', d3.line().x((p) => x(p.t)).y((p) => y(p.best[sp]))); });
   L.changes.filter((c) => c.promoted).forEach((c) => { const xx = x(Date.parse(c.date)); svg.append('line').attr('x1', xx).attr('x2', xx).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', css('--accent')).attr('stroke-dasharray', '3 3'); });
 }
 

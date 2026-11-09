@@ -46,6 +46,8 @@ SPECIES = {
     "ma_cross": "均线趋势",
     "rsi_revert": "均值回归",
     "channel": "通道突破",
+    "vol_surge": "放量异动",
+    "rel_strength": "相对强弱",
 }
 
 
@@ -61,6 +63,8 @@ class PairData:
     atr: np.ndarray
     cache: dict
     bar_h: float = 1.0  # 每根 K 线多少小时
+    v: np.ndarray | None = None      # 成交量
+    ref_c: np.ndarray | None = None  # 同一时刻 BTC 收盘价（相对强弱用）
 
 
 TF_HOURS = {"15m": 0.25, "1h": 1.0, "4h": 4.0, "1d": 24.0}
@@ -98,7 +102,12 @@ def load_data(pairs: list[str] | None = None, tf: str = "1h") -> list[PairData]:
         tr = np.maximum(h - l, np.maximum(abs(h - prev_c), abs(l - prev_c)))
         atr = pd.Series(tr).ewm(alpha=1 / 14, adjust=False).mean().to_numpy()
         t = df["date"].dt.tz_convert(None).to_numpy("datetime64[ns]")
-        out.append(PairData(p, t, o, h, l, c, atr, {}, TF_HOURS[tf]))
+        out.append(PairData(p, t, o, h, l, c, atr, {}, TF_HOURS[tf], df["volume"].to_numpy(float)))
+    btc = next((d for d in out if d.name == "BTC"), None)
+    for d in out:   # 把 BTC 收盘价对齐到每个币的时间轴（只用当根及之前的 BTC 价格）
+        if btc is not None:
+            k = np.searchsorted(btc.t, d.t, side="right") - 1
+            d.ref_c = np.where(k >= 0, btc.c[np.clip(k, 0, None)], np.nan)
     return out
 
 
@@ -162,6 +171,24 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
         hh = pd.Series(d.h).rolling(n).max().shift(1).to_numpy()
         ll = pd.Series(d.l).rolling(n).min().shift(1).to_numpy()
         long_, short_ = c > hh, c < ll
+    elif sp == "vol_surge":
+        # 成交量是过去 n 根均量的 m 倍以上，顺这根 K 线的方向开仓
+        avg = pd.Series(d.v).rolling(g["n"]).mean().shift(1).to_numpy()
+        surge = d.v > g["m"] * avg
+        long_, short_ = surge & (c > o), surge & (c < o)
+    elif sp == "rel_strength":
+        # n 根 K 线内本币涨幅减去 BTC 涨幅，上穿 +th 做多、下穿 -th 做空
+        n = g["n"]
+        if d.ref_c is None or d.name == "BTC" or len(c) <= n:
+            z = np.zeros(len(c), bool)
+            long_, short_ = z, z.copy()
+        else:
+            cp = np.concatenate([np.full(n, np.nan), c[:-n]])
+            rp = np.concatenate([np.full(n, np.nan), d.ref_c[:-n]])
+            rs = np.nan_to_num(c / cp - d.ref_c / rp)
+            prev = np.concatenate([[0.0], rs[:-1]])
+            long_ = (rs > g["th"]) & (prev <= g["th"])
+            short_ = (rs < -g["th"]) & (prev >= -g["th"])
     else:
         raise ValueError(sp)
     if g["trend"] > 0:

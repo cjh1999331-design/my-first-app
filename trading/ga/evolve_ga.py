@@ -37,8 +37,9 @@ def evaluate(job):
     strip = lambda m: {k: v for k, v in m.items() if not k.startswith("_")}
     train, extra = strip(tr), {}
     if w["mode"] == "robust":
-        base, rets = robust_eval(genes, data, w["folds"], w["fee"], sigs)
-        nb = [robust_eval(n, data, w["folds"], w["fee"])[0] for n in neighbors]
+        fw = w.get("fold_w")
+        base, rets = robust_eval(genes, data, w["folds"], w["fee"], sigs, fw)
+        nb = [robust_eval(n, data, w["folds"], w["fee"], weights=fw)[0] for n in neighbors]
         score = 0.5 * base + 0.5 * min(nb) if nb else base
         train["calmar"] = train["fit"]
         train["fit"] = round(score, 3)
@@ -60,6 +61,8 @@ SPECIFIC = {
     "ma_cross": {"fast": (5, 40, True), "slow": (20, 150, True)},
     "rsi_revert": {"lo": (15, 40, True), "hi": (60, 85, True)},
     "channel": {"n": (12, 120, True)},
+    "vol_surge": {"m": (1.5, 6.0, False), "n": (10, 100, True)},
+    "rel_strength": {"n": (6, 120, True), "th": (0.02, 0.3, False)},
 }
 TREND_CHOICES = [0, 50, 100, 150, 200, 300]
 DIRS = ["long", "short", "both"]
@@ -85,6 +88,13 @@ def random_genes(sp):
     for k, (lo, hi, it) in {**COMMON, **SPECIFIC[sp]}.items():
         g[k] = clamp(random.uniform(lo, hi), lo, hi, it)
     return fix(g)
+
+
+def distance(a, b) -> float:
+    """两个同物种个体的基因距离：数值基因按范围归一化取平均，周期 / 方向 / 趋势过滤不同各加一点。"""
+    keys = {**COMMON, **SPECIFIC[a["species"]]}
+    d = sum(abs(a[k] - b[k]) / (hi - lo) for k, (lo, hi, _) in keys.items()) / len(keys)
+    return d + 0.3 * (a.get("tf") != b.get("tf")) + 0.2 * (a["dir"] != b["dir"]) + 0.1 * (a["trend"] != b["trend"])
 
 
 def mutate(p, strength=0.18):
@@ -119,6 +129,10 @@ def describe(g):
     elif sp == "rsi_revert":
         core = {"long": f"RSI 回升过 {g['lo']} 做多", "short": f"RSI 回落过 {g['hi']} 做空",
                 "both": f"RSI 回升过 {g['lo']} 做多 / 回落过 {g['hi']} 做空"}[g["dir"]]
+    elif sp == "vol_surge":
+        core = f"成交量 > {g['m']}× 前 {g['n']} 根均量 顺 K 线方向"
+    elif sp == "rel_strength":
+        core = f"{g['n']} 根内比 BTC 多涨 / 多跌 {round(g['th'] * 100, 1)}%"
     else:
         core = f"突破 {g['n']} 根 K 线高低点"
     trend = f" · EMA{g['trend']} 趋势过滤" if g["trend"] else ""
@@ -142,7 +156,7 @@ def fold_score(m: dict) -> float:
     return float(np.clip(m["fit"], -3, 3))
 
 
-def robust_eval(genes, data, folds, stress_fee, sigs=None):
+def robust_eval(genes, data, folds, stress_fee, sigs=None, weights=None):
     """在每个时间段分别回测（加压手续费），返回 (得分, 各段收益%)。"""
     sigs = sigs if sigs is not None else all_signals(genes, data)
     scores, rets, trades = [], [], 0
@@ -152,7 +166,9 @@ def robust_eval(genes, data, folds, stress_fee, sigs=None):
         rets.append(m["ret"])
         trades += m["trades"]
     sc = np.array(scores)
-    base = float(sc.mean() - 0.5 * sc.std())
+    w = np.ones(len(sc)) if weights is None else np.asarray(weights, float)   # 越近的时间段权重越大
+    mu = float((sc * w).sum() / w.sum())
+    base = mu - 0.5 * float(np.sqrt((w * (sc - mu) ** 2).sum() / w.sum()))
     profitable = sum(r > 0 for r in rets)
     need = len(folds) - 1
     if profitable < need:

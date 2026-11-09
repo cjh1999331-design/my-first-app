@@ -35,7 +35,14 @@ from portfolio import PortfolioRules, run_portfolio
 HERE = Path(__file__).parent
 LIVE = HERE / "live"
 TRAIN_START = "2021-02-01"
-SHORT = {"vol_breakout": "v", "ma_cross": "m", "rsi_revert": "r", "channel": "c"}
+SHORT = {"vol_breakout": "v", "ma_cross": "m", "rsi_revert": "r", "channel": "c", "vol_surge": "u", "rel_strength": "s"}
+SHARE_SIGMA = 0.25      # 适应度共享：基因距离小于它的个体互相“分摊”得分
+SHARE_COST = 0.1        # 每多一个相近个体扣的分
+MIN_DIST = 0.08         # 精英之间至少要这么不同
+IMMIGRANT = 0.2         # 每个新个体是随机移民的概率
+STAGNATION = 25         # 物种冠军连续这么多代没换人 -> 大灭绝重启
+MAX_CORR = 0.6          # 上线组合里两个策略的日收益相关性上限
+TEAM_MAX = 5
 DAY = np.timedelta64(1, "D")
 
 
@@ -51,8 +58,9 @@ def day_str(t) -> str:
 def new_state(args) -> dict:
     return {"gen": 0, "next_id": {sp: 0 for sp in SPECIES}, "pop": {sp: [] for sp in SPECIES}, "archive": [],
             "log": [], "active": None, "challenger": None, "changes": [], "segments": [], "now": None,
+            "stag": {sp: {"champ": None, "gens": 0} for sp in SPECIES}, "events": [],
             "config": {"per_species": args.per_species, "elite": args.elite, "probation": args.probation,
-                       "tfs": args.tfs, "train_start": TRAIN_START}}
+                       "tfs": args.tfs, "train_start": TRAIN_START, "train_years": args.train_years}}
 
 
 def _np(o):
@@ -72,10 +80,19 @@ def save_state(st: dict, path: Path):
 
 
 # ------------------------------------------------------------------ 进化
-def evaluate_all(genes_list, data, t_end, workers):
-    """在训练窗口 [TRAIN_START, t_end) 上给一批基因打稳健分（并行）。"""
-    G.W.update(data=data, tr0=np.datetime64(TRAIN_START), tr1=t_end, oo0=t_end, oo1=t_end,
-               folds=G.fold_edges(np.datetime64(TRAIN_START), t_end, 6), fee=0.0008, mode="robust")
+def train_start(st, t_end):
+    """滑动训练窗口：只用最近 train_years 年（最早不早于 TRAIN_START）。"""
+    yrs = st["config"].get("train_years") or 0
+    t0 = np.datetime64(TRAIN_START)
+    if yrs > 0:
+        t0 = max(t0, np.datetime64(t_end, "D") - int(round(365.25 * yrs)) * DAY)
+    return t0
+
+
+def evaluate_all(genes_list, data, t0, t_end, workers):
+    """在训练窗口 [t0, t_end) 上给一批基因打稳健分（并行）。6 段时间越近权重越大（0.5 -> 1.5）。"""
+    G.W.update(data=data, tr0=t0, tr1=t_end, oo0=t_end, oo1=t_end,
+               folds=G.fold_edges(t0, t_end, 6), fee=0.0008, mode="robust", fold_w=np.linspace(0.5, 1.5, 6))
     jobs = [(g, [G.neighbor(g) for _ in range(2)]) for g in genes_list]
     with Pool(workers) as pool:
         return pool.map(G.evaluate, jobs, chunksize=1)
@@ -91,43 +108,111 @@ def evolve(st: dict, data, t_end, gens: int, workers: int):
         return {"id": iid, "species": sp, "genes": genes, "gen": st["gen"], "origin": origin, "parents": parents,
                 "desc": G.describe(genes), "fit": None, "train": None}
 
+    t0 = train_start(st, t_end)
+
     def score(inds):
-        res = evaluate_all([i["genes"] for i in inds], data, t_end, workers)
+        res = evaluate_all([i["genes"] for i in inds], data, t0, t_end, workers)
         for i, (train, _, extra) in zip(inds, res):
             i["fit"], i["train"], i["folds"] = train["fit"], train, extra.get("folds")
 
+    def shared(members):
+        """适应度共享：周围相近个体越多，选择时的得分越低，防止全种群挤到同一个参数上。"""
+        out = {}
+        for x in members:
+            niche = sum(max(0.0, 1 - G.distance(x["genes"], y["genes"]) / SHARE_SIGMA) for y in members)
+            out[x["id"]] = x["fit"] - SHARE_COST * (niche - 1)
+        return out
+
+    def random_tf(sp, tf):
+        g = G.random_genes(sp)
+        g["tf"] = tf
+        return g
+
     fresh = []
-    if not any(st["pop"].values()):                     # 第一次：随机初始种群
-        for sp in SPECIES:
+    for sp in SPECIES:                                   # 第一次（或新加的物种）：随机初始种群
+        st["pop"].setdefault(sp, [])
+        st["next_id"].setdefault(sp, 0)
+        st.setdefault("stag", {}).setdefault(sp, {"champ": None, "gens": 0})
+        if not st["pop"][sp]:
             st["pop"][sp] = [new_ind(G.random_genes(sp), "初始随机", []) for _ in range(cfg["per_species"])]
             fresh += st["pop"][sp]
     # 训练窗口变了，存活个体重新打分
     score([i for ms in st["pop"].values() for i in ms])
     for c in fresh:
         st["archive"].append({k: c[k] for k in ("id", "species", "gen", "origin", "parents", "desc", "fit")})
+    tfs = cfg["tfs"].split(",") if isinstance(cfg["tfs"], str) else cfg["tfs"]
+    n = cfg["per_species"]
     for _ in range(gens):
         st["gen"] += 1
         born = []
         for sp, members in st["pop"].items():
             members.sort(key=lambda x: x["fit"], reverse=True)
-            nxt = members[: cfg["elite"]]
+            sg = st["stag"][sp]
+            if members[0]["id"] == sg["champ"]:
+                sg["gens"] += 1
+            else:
+                sg["champ"], sg["gens"] = members[0]["id"], 0
+            if sg["gens"] >= STAGNATION:
+                # 大灭绝：只留前 3 名，其余换成冠军的大幅突变体和随机新个体
+                nxt = members[:3]
+                while len(nxt) < n:
+                    if len(nxt) % 2:
+                        g = members[0]["genes"]
+                        for _ in range(3):
+                            g = G.mutate(g, strength=0.4)
+                        c = new_ind(g, "灭绝后突变", [members[0]["id"]])
+                    else:
+                        c = new_ind(G.random_genes(sp), "灭绝后移民", [])
+                    nxt.append(c)
+                    born.append(c)
+                st["events"].append({"date": str(t_end)[:10], "gen": st["gen"], "species": sp, "type": "灭绝重启",
+                                     "champ": members[0]["id"], "stale": sg["gens"]})
+                sg["gens"] = 0
+                st["pop"][sp] = nxt
+                continue
+            sh = shared(members)
+            # 精英：按得分挑，但和已选精英太像的跳过
+            nxt = []
+            for m in members:
+                if len(nxt) >= cfg["elite"]:
+                    break
+                if all(G.distance(m["genes"], e["genes"]) >= MIN_DIST for e in nxt):
+                    nxt.append(m)
+            # 周期保种：每个周期至少留下它最好的一个
+            for tf in tfs:
+                if not any(x["genes"].get("tf") == tf for x in nxt):
+                    best = next((m for m in members if m["genes"].get("tf") == tf), None)
+                    if best is not None:
+                        nxt.append(best)
 
             def pick():
                 a, b = random.sample(members, 2)
-                return a if a["fit"] >= b["fit"] else b
+                return a if sh[a["id"]] >= sh[b["id"]] else b
 
-            while len(nxt) < cfg["per_species"]:
+            while len(nxt) < n:
                 r = random.random()
-                if r < 0.6:
+                if r < IMMIGRANT:
+                    c = new_ind(G.random_genes(sp), "随机移民", [])
+                elif r < IMMIGRANT + 0.5:
                     p = pick()
                     c = new_ind(G.mutate(p["genes"]), "突变", [p["id"]])
-                elif r < 0.88:
+                else:
                     a, b = pick(), pick()
                     c = new_ind(G.crossover(a["genes"], b["genes"]), "交叉", sorted({a["id"], b["id"]}))
-                else:
-                    c = new_ind(G.random_genes(sp), "随机移民", [])
                 nxt.append(c)
                 born.append(c)
+            # 每个周期至少 2 个个体：不够就把新生儿换成该周期的随机个体
+            for tf in tfs:
+                while sum(x["genes"].get("tf") == tf for x in nxt) < 2:
+                    victims = [x for x in nxt if x in born and sum(y["genes"].get("tf") == x["genes"].get("tf") for y in nxt) > 2]
+                    if not victims:
+                        break
+                    v = victims[-1]
+                    nxt.remove(v)
+                    born.remove(v)
+                    c = new_ind(random_tf(sp, tf), "周期保种", [])
+                    nxt.append(c)
+                    born.append(c)
             st["pop"][sp] = nxt
         score(born)
         for c in born:                                   # 存档（页面画谱系用），只留最近 70 代
@@ -141,6 +226,33 @@ def champions(st) -> list[dict]:
     """各物种冠军中得分 > 0 的，按得分排（优先级）。"""
     cs = [ms[0] for ms in st["pop"].values() if ms and ms[0]["fit"] is not None and ms[0]["fit"] > 0]
     return sorted(cs, key=lambda x: -x["fit"])
+
+
+def daily_returns(genes, data, t0, t1):
+    m = G.backtest(genes, data, t0, t1, min_trades=1)
+    eq = np.array([v for _, v in G.daily_equity(m, str(t0)[:10], str(t1)[:10])])
+    return np.diff(eq) / eq[:-1]
+
+
+def select_team(st, data, t_end) -> list[dict]:
+    """挑上线组合：每个物种前 3 名（得分 > 0）做候选，按得分从高到低加入，
+    但和已入选策略最近一年日收益相关性超过 MAX_CORR 的跳过，每个物种最多一个，最多 TEAM_MAX 个。"""
+    cands = [m for ms in st["pop"].values() for m in ms[:3] if m["fit"] is not None and m["fit"] > 0]
+    cands.sort(key=lambda x: -x["fit"])
+    t0 = t_end - 365 * DAY
+    rets, team = {}, []
+    for c in cands:
+        if len(team) >= TEAM_MAX:
+            break
+        if any(t["species"] == c["species"] for t in team):
+            continue
+        rets[c["id"]] = daily_returns(c["genes"], data, t0, t_end)
+        corr = [np.corrcoef(rets[c["id"]], rets[t["id"]])[0, 1] for t in team]
+        corr = [x for x in corr if np.isfinite(x)]
+        if corr and max(corr) > MAX_CORR:
+            continue
+        team.append(c)
+    return team
 
 
 def team_of(inds) -> dict:
@@ -158,8 +270,7 @@ def run_team(team, data, t0, t1, equity, rules: PortfolioRules):
 
 def manage(st, data, now, rules: PortfolioRules):
     probation = st["config"]["probation"]
-    champs = champions(st)
-    champ_team = team_of(champs)
+    champ_team = team_of(select_team(st, data, now))
     if st["active"] is None:
         if champ_team["ids"]:
             st["active"] = {**champ_team, "since": str(now)}
@@ -205,6 +316,9 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             continue
         grid, eq, step_h, open_pos, closed_raw = r
         stops += [str(x)[:16] for x in run_portfolio.stops]
+        if step_h > 4:          # 组合里只有日线策略时按天记账，展开成 4 小时
+            eq = np.repeat(eq, int(round(step_h / 4)))
+            step_h = 4
         per4h = int(round(4 / step_h))
         e4 = eq[: len(eq) // per4h * per4h].reshape(-1, per4h)
         prev = np.concatenate([[last_eq], e4[:-1, -1]])
@@ -252,7 +366,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             "positions": positions, "closed": closed[:300],
             "closed_stats": {"n": len(closed), "wins": sum(t["pnl"] > 0 for t in closed), "realized": round(sum(t["pnl"] for t in closed), 2)},
             "rules": {"risk": rules.risk, "lev": rules.lev, "per_strategy": rules.per_strategy, "daily_stop": rules.daily_stop,
-                      "max_pos": rules.per_strategy * 4, "max_notional": rules.max_notional, "stops": stops},
+                      "max_pos": rules.per_strategy * TEAM_MAX, "max_notional": rules.max_notional, "stops": stops},
             "shuffle": {"finals": [], "dds": []}}
 
 
@@ -270,7 +384,14 @@ def step(st, data, now, gens, workers, rules):
     manage(st, data, now, rules)
     st["now"] = str(now)
     ch = champions(st)
+    div = {sp: round(float(np.mean([G.distance(a["genes"], b["genes"]) for k, a in enumerate(ms) for b in ms[k + 1:]])), 3)
+           for sp, ms in st["pop"].items() if len(ms) > 1}
+    tfc = {}
+    for ms in st["pop"].values():
+        for m in ms:
+            tfc[m["genes"].get("tf")] = tfc.get(m["genes"].get("tf"), 0) + 1
     st["log"].append({"date": str(now)[:10], "gen": st["gen"], "best": {i["species"]: i["fit"] for i in ch},
+                      "div": div, "tfs": tfc, "train_start": str(train_start(st, now))[:10],
                       "champs": [i["id"] for i in ch], "active": st["active"]["ids"] if st["active"] else [],
                       "challenger": st["challenger"]["ids"] if st["challenger"] else []})
     print(f"{str(now)[:10]}  第 {st['gen']} 代  冠军 {[(i['id'], round(i['fit'], 2)) for i in ch]}  "
@@ -287,8 +408,9 @@ def main():
     ap.add_argument("--end", default=None, help="simulate：到哪天结束（默认数据最后一天）")
     ap.add_argument("--step-days", type=int, default=7)
     ap.add_argument("--probation", type=int, default=28, help="挑战者考核天数")
-    ap.add_argument("--per-species", type=int, default=10)
-    ap.add_argument("--elite", type=int, default=2)
+    ap.add_argument("--per-species", type=int, default=30)
+    ap.add_argument("--elite", type=int, default=4)
+    ap.add_argument("--train-years", type=float, default=3, help="滑动训练窗口长度（年），0 = 从 2021-02 起全部")
     ap.add_argument("--tfs", default="15m,1h,4h,1d")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--seed", type=int, default=11)
