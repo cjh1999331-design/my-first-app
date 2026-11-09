@@ -151,6 +151,14 @@
   details summary { cursor: pointer; color: var(--fg); font-weight: 600; }
   details ul { padding-left: 1.2em; max-width: 72ch; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .teams { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 640px) { .teams { grid-template-columns: 1fr 1fr; } }
+  .teams .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .tm { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .tm .d { font-size: 12px; color: var(--muted); }
+  .bar { height: 6px; background: var(--soft); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .bar span { display: block; height: 100%; background: var(--accent); }
+  .ok-pill { color: var(--good); font-weight: 600; } .no-pill { color: var(--muted); }
   [hidden] { display: none !important; }
 </style>
 
@@ -214,6 +222,17 @@
   <!-- 进化 -->
 
   <section class="view" id="v-evolution" hidden>
+    <div class="card" id="live" hidden>
+      <div class="card-h"><h2 id="live-title">持续进化</h2><span class="when" id="live-now"></span></div>
+      <p class="sub" id="live-sub"></p>
+      <div class="teams">
+        <div><div class="k">当前上线组合</div><div id="live-active"></div></div>
+        <div><div class="k">挑战者（考核中）</div><div id="live-chall"></div></div>
+      </div>
+      <div class="chart" id="c-live"></div>
+      <h2 style="font-size:.95rem">换代记录</h2>
+      <div class="scroll"><table class="rt"><thead><tr><th>考核结束</th><th>挑战者</th><th>挑战者收益</th><th>上线组合收益</th><th>结果</th></tr></thead><tbody id="live-changes"></tbody></table></div>
+    </div>
     <div class="card">
       <p class="sub" id="evo-intro"></p>
       <div class="stats" id="stats"></div>
@@ -482,7 +501,7 @@ document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click'
 }));
 document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
 document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
-document.getElementById('sim-note').textContent = `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
+document.getElementById('sim-note').textContent = D.live ? `持续进化模拟账户：从 ${D.live.start} 开始，模拟账户只由“上线组合”交易，组合每次换代时按当时价格全部平仓再由新组合接手；每一步只用当时已有的数据。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。没有真实下单。` : `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
 const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}${s.tf_name ? ' · ' + s.tf_name : ''}`]); };
 
 function bars(tf) {
@@ -656,6 +675,42 @@ function renderDetail() {
   }
 }
 
+// ---------- 持续进化
+function renderLive() {
+  const L = D.live; if (!L) return;
+  document.getElementById('live').hidden = false;
+  document.getElementById('live-title').textContent = `持续进化 · 第 ${L.gen} 代`;
+  document.getElementById('live-now').textContent = `更新到 ${L.now}`;
+  document.getElementById('live-sub').textContent = `从 ${L.start} 开始，每一步把最新行情加进训练窗口，接着上一次的种群进化 5 代。各物种冠军组成挑战者，先影子交易 ${L.probation} 天，同期收益跑赢当前上线组合才替换，模拟账户只由上线组合交易。`;
+  const teamEl = (t, isCh) => {
+    if (!t) return el('p', { className: 'sub', textContent: isCh ? '暂无（冠军和上线组合相同）' : '—' });
+    const items = t.items.map((i) => el('div', {}, [el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${i.species})` }), `${i.id} · ${i.desc.split(' · ').slice(0, 2).join(' · ')}`])]));
+    const box = el('div', { className: 'tm' }, [...items, el('div', { className: 'd', textContent: isCh ? `${t.since} 开始考核` : `${t.since} 上线` })]);
+    if (isCh) { const days = (Date.parse(L.now.slice(0, 10)) - Date.parse(t.since)) / 864e5; box.append(el('div', { className: 'bar' }, [el('span', { style: `width:${Math.min(100, days / L.probation * 100)}%` })]), el('div', { className: 'd', textContent: `考核 ${Math.round(days)} / ${L.probation} 天` })); }
+    return box;
+  };
+  document.getElementById('live-active').replaceChildren(teamEl(L.active, false));
+  document.getElementById('live-chall').replaceChildren(teamEl(L.challenger, true));
+  const ch = L.changes.slice().reverse();
+  document.getElementById('live-changes').replaceChildren(...(ch.length ? ch.map((c) => el('tr', {}, [el('td', { textContent: c.date }), el('td', { textContent: c.to.join('、') }),
+    el('td', { textContent: pct(c.chall_ret), className: cls(c.chall_ret) }), el('td', { textContent: pct(c.active_ret), className: cls(c.active_ret) }),
+    el('td', {}, [el('span', { className: c.promoted ? 'ok-pill' : 'no-pill', textContent: c.promoted ? '上线' : '淘汰' })])])) : [el('tr', {}, [el('td', { textContent: '还没有完成考核的挑战者', colSpan: 5 })])]));
+  // 各物种最高分随时间变化
+  const box = document.getElementById('c-live'); box.replaceChildren();
+  const W = Math.max(280, box.clientWidth), H = 170;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各物种冠军得分随时间变化');
+  const pts = L.log.map((l) => ({ t: Date.parse(l.date), best: l.best }));
+  const all = pts.flatMap((p) => Object.values(p.best));
+  const y = d3.scaleLinear().domain([0, d3.max(all) || 1]).nice();
+  const m = { t: 10, r: 10, b: 22, l: textW(svg, y.ticks(4).map(String)) + 8 };
+  y.range([H - m.b, m.t]);
+  const x = d3.scaleUtc().domain(d3.extent(pts, (p) => p.t)).range([m.l, W - m.r]);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(W / 110))).tickFormat(d3.utcFormat('%y-%m')).tickSize(0).tickPadding(8)).call(axisStyle);
+  SP.forEach((sp) => { const ser = pts.filter((p) => p.best[sp] !== undefined); if (ser.length > 1) svg.append('path').datum(ser).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 1.8).attr('d', d3.line().x((p) => x(p.t)).y((p) => y(p.best[sp]))); });
+  L.changes.filter((c) => c.promoted).forEach((c) => { const xx = x(Date.parse(c.date)); svg.append('line').attr('x1', xx).attr('x2', xx).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', css('--accent')).attr('stroke-dasharray', '3 3'); });
+}
+
 // ---------- 验证页
 document.getElementById('verdict').textContent = `第 5 轮让周期参与进化后，4 小时策略胜出。冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}）。优势仍然很薄（样本外盈亏比 ${M(champ.oo).pf.toFixed(2)}）。模拟账户用 10 倍杠杆、每笔 1% 风险把它放大了：回放赚了 ${pct((R.ohlc[R.ohlc.length - 1][3] / R.start_equity - 1) * 100)}，但最大回撤超过 60%，换一种开仓顺序可能只剩 ${usd(d3.min(R.shuffle.finals))} USDT。先不要投入真钱，下一步用实时模拟盘检验。`;
 const okInds = ALL.filter((a) => M(a.tr).trades >= 30);
@@ -690,7 +745,7 @@ function show() {
   document.querySelectorAll('.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.view === v));
   requestAnimationFrame(() => {
     if (v === 'account') renderAccount();
-    if (v === 'evolution') { drawLineage(); renderDetail(); }
+    if (v === 'evolution') { renderLive(); drawLineage(); renderDetail(); }
     if (v === 'validation') { drawRoundsNew(); drawScatter(); }
   });
 }

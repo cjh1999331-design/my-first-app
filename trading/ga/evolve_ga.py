@@ -32,7 +32,8 @@ def evaluate(job):
     data = w["data"]
     sigs = all_signals(genes, data)
     tr = backtest(genes, data, w["tr0"], w["tr1"], sigs=sigs)
-    oo = backtest(genes, data, w["oo0"], w["oo1"], sigs=sigs)
+    oo = backtest(genes, data, w["oo0"], w["oo1"], sigs=sigs) if w["oo1"] > w["oo0"] else \
+        {"trades": 0, "ret": 0.0, "dd": 0.0, "win": 0.0, "pf": 0.0, "fit": 0.0}
     strip = lambda m: {k: v for k, v in m.items() if not k.startswith("_")}
     train, extra = strip(tr), {}
     if w["mode"] == "robust":

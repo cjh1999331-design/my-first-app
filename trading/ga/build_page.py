@@ -50,9 +50,22 @@ def main():
         rj = json.loads(rp.read_text())
         replay = rj
     uni = json.loads((HERE / "universe.json").read_text()) if (HERE / "universe.json").exists() else None
+    # 持续进化：有 live/state.json 时，账户页显示滚动进化的模拟账户，进化页显示换代记录
+    live = None
+    sp_, ap_ = HERE / "live" / "state.json", HERE / "live" / "account.json"
+    if sp_.exists() and ap_.exists():
+        st = json.loads(sp_.read_text())
+        replay = json.loads(ap_.read_text())
+        team = lambda t: None if not t else {"ids": t["ids"], "since": t["since"][:10],
+                                             "items": [{"id": i, "species": t["species"][i], "desc": t["desc"][i]} for i in t["ids"]]}
+        live = {"gen": st["gen"], "now": str(st["now"])[:16].replace("T00:00", ""), "probation": st["config"]["probation"],
+                "start": st["segments"][0]["start"][:10] if st["segments"] else None,
+                "active": team(st["active"]), "challenger": team(st["challenger"]), "changes": st["changes"],
+                "log": [{"date": l["date"], "gen": l["gen"], "best": l["best"]} for l in st["log"]],
+                "segments": [{"start": g["start"][:10], "ids": g["team"]["ids"]} for g in st["segments"]]}
     page = {"universe": uni, "meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
             "oos_best": d["oos_best"], "final_population": d["final_population"], "history": d["history"],
-            "inds": inds, "rounds": rounds, "replay": replay}
+            "inds": inds, "rounds": rounds, "replay": replay, "live": live}
     blob = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = (HERE / "page_template.html").read_text().replace("__DATA__", blob)
     Path(args.out).write_text(html)

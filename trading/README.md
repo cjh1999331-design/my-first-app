@@ -109,3 +109,35 @@ freqtrade trade --config user_data/config.json --userdir user_data --strategy Ev
 - 回测没有完全模拟滑点和流动性，实际表现通常更差。先 dry-run 至少几周，再小资金试。
 - 交易所 API Key 只开交易权限，**不要开提币**；密钥写到 `config.private.json`，别提交到 git。
 - 这只是研究工具，不构成投资建议。
+
+## 6. 持续进化（部署到云服务器）
+
+`ga/rolling.py` 实现了滚动进化：每天把最新行情加进训练窗口，接着上一次的种群进化几代；
+各物种冠军组成“挑战者”先影子交易 28 天，同期收益跑赢当前上线组合才替换；模拟账户只由上线组合交易。
+状态保存在 `ga/live/state.json`，每次运行接着上一次继续。
+
+**在一台 Linux 云服务器上（建议香港 / 新加坡 / 日本，2 核 4G 以上）：**
+
+```bash
+git clone <你的仓库地址> && cd my-first-app/trading
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 第一次：下载前 100 热门币的历史 K 线（15m 数据较大，约 1 小时）
+PAIRS=$(.venv/bin/python -c 'import json;print(" ".join(c["base"]+"/USDT:USDT" for c in json.load(open("ga/universe.json"))["coins"]))')
+.venv/bin/freqtrade download-data --config user_data/config.json --userdir user_data \
+  -t 15m 1h --timerange 20210101- --candle-types futures --pairs $PAIRS
+
+# 试跑一次
+ga/live/daily.sh && tail ga/live/daily.log
+
+# 每天 UTC 01:17 自动运行（crontab -e 加入下面一行）
+17 1 * * * cd $HOME/my-first-app/trading && GIT_PUSH=1 ga/live/daily.sh
+```
+
+想先看看这套流程在历史上表现如何，可以做“走一步看一步”的模拟（每一步只用当时已有的数据）：
+
+```bash
+cd ga && ../.venv/bin/python rolling.py simulate --start 2025-06-01 --step-days 7 --gens 5
+```
+
+注意：页面里的模拟账户没有真实下单。要接 OKX 模拟盘真实下单，还需要在服务器上运行 freqtrade 的 dry-run 或 OKX 模拟交易 API。
