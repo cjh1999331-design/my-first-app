@@ -1,13 +1,13 @@
 """
-一个量化账户：多个策略共用同一个资金池，按小时逐根撮合。
+一个量化账户：多个策略（可以是不同周期）共用同一个资金池，按最小周期逐步撮合。
 
 规则（可在 PortfolioRules 里改）：
 - 每笔风险：止损时最多亏当前账户权益的 risk（默认 0.2%），由此反推仓位大小；
   25 个持仓同时止损最多亏约 5%（组合总风险上限）
 - 逐仓保证金：统一 lev 倍（默认 5x），所有持仓保证金合计不超过账户权益的 95%
 - 每个币同时只有一个持仓；最多同时 max_pos 个持仓；单笔名义仓位不超过账户权益 × max_notional
-- 同一小时多个信号时，按策略优先级（训练期得分高的在前）依次处理
-- 信号在 K 线收盘判断，下一根开盘入场；止损、止盈、最长持仓时间沿用策略基因
+- 同一时刻多个信号时，按策略优先级（训练期得分高的在前）依次处理
+- 每个策略在自己周期的 K 线收盘判断信号，下一根开盘入场；在自己周期的 K 线收盘时检查止损/止盈/到期
 - 同一根 K 线同时碰到止损和止盈按止损算；开仓扣手续费，平仓扣手续费 + 资金费
 """
 from __future__ import annotations
@@ -16,9 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from engine import FEE, FUNDING_PER_H, PairData, signals
-
-HOUR = np.timedelta64(1, "h")
+from engine import FEE, FUNDING_PER_H, TF_HOURS, pick, signals
 
 
 @dataclass
@@ -30,72 +28,90 @@ class PortfolioRules:
     max_notional: float = 1.0
     margin_cap: float = 0.95
     min_notional: float = 5.0
+    order_seed: int | None = None   # None：同一时刻按成交额排名开仓；整数：随机打乱币的优先顺序（检验结果对顺序是否敏感）
 
 
-def run_portfolio(strats: list[tuple[str, dict]], data: list[PairData], t0, t_end, rules: PortfolioRules = PortfolioRules()):
-    """strats: [(策略 id, 基因)]，按优先级排序。返回每小时权益、未平仓持仓、已平仓交易。"""
-    hours = np.arange(t0, t_end, HOUR)
-    nh = len(hours)
-    # 每个币：小时网格 -> 该币 K 线序号（没有数据为 -1）
-    hidx = []
-    for d in data:
-        j = np.searchsorted(d.t, hours)
-        j = np.minimum(j, len(d.t) - 1)
-        hidx.append(np.where(d.t[j] == hours, j, -1))
-    # 入场事件：events[h] = [(优先级, 币, 策略序号, 方向, 信号所在 K 线)]
-    events: list[list] = [[] for _ in range(nh)]
+def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: PortfolioRules = PortfolioRules()):
+    """strats: [(策略 id, 基因)]，按优先级排序；data: load_all() 的字典或单周期列表。
+    返回 (时间网格, 每步权益, 网格步长小时数, 未平仓持仓, 已平仓交易)。"""
+    step_h = min(TF_HOURS[g.get("tf", "1h")] for _, g in strats)
+    step = np.timedelta64(int(step_h * 60), "m")
+    grid = np.arange(t0, t_end, step)
+    ng = len(grid)
+
+    series = {}   # (周期, 币) -> (数据, 开盘映射, 收盘映射)
+    def get_series(d):
+        key = (d.bar_h, d.name)
+        if key not in series:
+            bar = np.timedelta64(int(d.bar_h * 60), "m")
+            ok = (d.t >= t0) & (d.t < t_end)
+            idx = np.flatnonzero(ok)
+            open_map = np.full(ng, -1)
+            open_map[((d.t[idx] - t0) // step).astype(int)] = idx
+            close_g = ((d.t[idx] + bar - step - t0) // step).astype(int)
+            keep = close_g < ng
+            close_map = np.full(ng, -1)
+            close_map[close_g[keep]] = idx[keep]
+            series[key] = (d, open_map, close_map)
+        return key
+
+    rank = {}
+    if rules.order_seed is not None:
+        rng = np.random.default_rng(rules.order_seed)
+    events: list[list] = [[] for _ in range(ng)]
     for si, (_, g) in enumerate(strats):
-        for ci, d in enumerate(data):
+        for ci, d in enumerate(pick(data, g)):     # ci：币在成交额排名里的顺序，同一时刻排名靠前的先开
+            if rules.order_seed is not None:
+                ci = rank.setdefault(d.name, float(rng.random()))
+            key = get_series(d)
             L, S = signals(g, d)
             idx = np.flatnonzero(L | S)
             idx = idx[idx + 1 < len(d.t)]
             te = d.t[idx + 1]
             ok = (te >= t0) & (te < t_end)
             for i, t in zip(idx[ok], te[ok]):
-                h = int((t - t0) // HOUR)
-                events[h].append((si, ci, si, 1 if L[i] else -1, int(i)))
+                events[int((t - t0) // step)].append((si, ci, d.name, si, 1 if L[i] else -1, int(i), key))
     for ev in events:
-        ev.sort()
+        ev.sort(key=lambda e: (e[0], e[1]))
+    active_keys = list(series)
 
     cash = rules.start_equity
-    eq = np.zeros(nh)
-    open_pos: dict[int, dict] = {}       # 币序号 -> 持仓
+    eq = np.zeros(ng)
+    open_pos: dict[str, dict] = {}     # 币名 -> 持仓
     closed = []
-    last_close = [np.nan] * len(data)
     floating = 0.0
-    for h in range(nh):
+    for gi in range(ng):
         equity_now = cash + floating
         # 1) 入场（下一根开盘价）
-        for (_, ci, si, side, i) in events[h]:
-            if ci in open_pos or len(open_pos) >= rules.max_pos:
+        for (_, _ci, name, si, side, i, key) in events[gi]:
+            if name in open_pos or len(open_pos) >= rules.max_pos or equity_now <= 0:
                 continue
-            d = data[ci]
-            j = hidx[ci][h]
-            if j < 0 or j != i + 1:
+            d, open_map, _ = series[key]
+            j = open_map[gi]
+            if j != i + 1:
                 continue
             g = strats[si][1]
             entry = d.o[j]
             dist = g["stop_atr"] * d.atr[i]
-            if not (dist > 0) or not np.isfinite(dist) or equity_now <= 0:
+            if not (dist > 0) or not np.isfinite(dist):
                 continue
             notional = equity_now * rules.risk / dist * entry
             notional = min(notional, equity_now * rules.max_notional)
             used = sum(p["margin"] for p in open_pos.values())
-            free = equity_now * rules.margin_cap - used
-            notional = min(notional, free * rules.lev)
+            notional = min(notional, (equity_now * rules.margin_cap - used) * rules.lev)
             if notional < rules.min_notional:
                 continue
             qty = notional / entry
             cash -= notional * FEE
-            open_pos[ci] = {"ci": ci, "si": si, "side": side, "entry": entry, "qty": qty, "margin": notional / rules.lev,
-                            "stop": entry - side * dist, "tp": entry + side * dist * g["tp_r"], "e_j": j,
-                            "max_hold": int(g["max_hold"]), "t_entry": d.t[j]}
-        # 2) 本根 K 线内的止损 / 止盈 / 到期
-        for ci in list(open_pos):
-            p = open_pos[ci]
-            d = data[ci]
-            j = hidx[ci][h]
-            if j < 0:
+            open_pos[name] = {"name": name, "si": si, "key": key, "side": side, "entry": entry, "qty": qty,
+                              "margin": notional / rules.lev, "stop": entry - side * dist, "tp": entry + side * dist * g["tp_r"],
+                              "e_j": j, "max_hold": int(g["max_hold"]), "t_entry": d.t[j], "lc": entry, "bar_h": d.bar_h}
+        # 2) 在各自周期的 K 线收盘时检查止损 / 止盈 / 到期
+        for name in list(open_pos):
+            p = open_pos[name]
+            d, _, close_map = series[p["key"]]
+            j = close_map[gi]
+            if j < 0 or j < p["e_j"]:
                 continue
             o, hi, lo, c = d.o[j], d.h[j], d.l[j], d.c[j]
             first = j == p["e_j"]
@@ -112,19 +128,16 @@ def run_portfolio(strats: list[tuple[str, dict]], data: list[PairData], t0, t_en
                     exit_p = p["tp"] if first else min(p["tp"], o)
             if exit_p is None and j - p["e_j"] >= p["max_hold"]:
                 exit_p = c
-            last_close[ci] = c
+            p["lc"] = c
             if exit_p is not None:
-                held = j - p["e_j"] + 1
+                held_h = (j - p["e_j"] + 1) * p["bar_h"]
                 gross = p["side"] * p["qty"] * (exit_p - p["entry"])
-                cost = p["qty"] * exit_p * FEE + p["qty"] * p["entry"] * FUNDING_PER_H * held
+                cost = p["qty"] * exit_p * FEE + p["qty"] * p["entry"] * FUNDING_PER_H * held_h
                 pnl = max(gross - cost, -p["margin"])            # 逐仓：最多亏掉这笔保证金
                 cash += pnl
                 closed.append({**p, "exit": exit_p, "t_exit": d.t[j], "pnl": pnl - p["qty"] * p["entry"] * FEE})
-                del open_pos[ci]
-        # 3) 收盘权益（含浮动盈亏）
-        floating = 0.0
-        for ci, p in open_pos.items():
-            lc = last_close[ci] if np.isfinite(last_close[ci]) else p["entry"]
-            floating += p["side"] * p["qty"] * (lc - p["entry"])
-        eq[h] = cash + floating
-    return hours, eq, list(open_pos.values()), closed, last_close
+                del open_pos[name]
+        # 3) 权益（含浮动盈亏，按各持仓最近一根已收盘 K 线）
+        floating = sum(p["side"] * p["qty"] * (p["lc"] - p["entry"]) for p in open_pos.values())
+        eq[gi] = cash + floating
+    return grid, eq, step_h, list(open_pos.values()), closed

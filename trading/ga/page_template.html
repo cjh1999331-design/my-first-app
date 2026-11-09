@@ -182,6 +182,7 @@
         <div class="kpi"><div class="k">最大回撤</div><div class="v" id="kdd">—</div></div>
       </div>
       <div class="alloc" id="alloc"></div>
+      <p class="foot" id="shuffle"></p>
     </div>
 
     <div class="card">
@@ -230,8 +231,8 @@
   <section class="view" id="v-validation" hidden>
     <p class="callout" id="verdict"></p>
     <div class="card" id="rounds">
-      <h2>四轮对比：样本外表现</h2>
-      <p class="sub">样本外区间（2025-06-01 起）只用来检验，不参与选择。第 1~3 轮只用 5 个币，第 4 轮扩展到成交额前 100。</p>
+      <h2>各轮对比：样本外表现</h2>
+      <p class="sub">样本外区间（2025-06-01 起）只用来检验，不参与选择。第 1~3 轮只用 5 个币、1 小时 K 线；第 4 轮扩展到成交额前 100；第 5 轮让周期也参与进化。</p>
       <div class="chart" id="c-rounds"></div>
       <div class="scroll"><table class="rt"><thead><tr><th>轮次</th><th>方法</th><th>最后一代合格</th><th>前 100 名样本外</th><th>冠军 训练→样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
     </div>
@@ -249,7 +250,7 @@
         <li>稳健得分：训练期（2021-02 ~ 2025-06）切成 6 段分别回测（手续费按 0.08% 加压），平均分 − 0.5×波动，赚钱段数少于 5 段扣分；再和参数扰动 ±10% 的“邻居”取折中。</li>
         <li>简化回测：没有滑点和盘口深度；逐仓亏损上限是保证金，没有模拟强平价格。</li>
         <li>共用账户时每笔风险定为 0.5% 的话，同样的策略会亏掉约 60%（加密货币同涨同跌，持仓风险会叠加）。0.2% 是看到这个结果后定的，所以账户回放的数字偏乐观。</li>
-        <li>样本外区间已经看过四次结果，再按它挑策略就会“偷看答案”。下一步应该用实时模拟盘检验。</li>
+        <li>样本外区间已经看过五次结果，再按它挑策略就会“偷看答案”。下一步应该用实时模拟盘检验。</li>
         <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
       </ul>
     </details>
@@ -481,7 +482,7 @@ document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click'
 document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
 document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
 document.getElementById('sim-note').textContent = `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 1 小时 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。风控：每笔止损最多亏账户 ${(R.rules.risk * 100).toFixed(1)}%，${R.rules.lev}x 逐仓，最多同时 ${R.rules.max_pos} 个持仓，每个币一个持仓。这套风控是在看到 0.5% 风险会大亏之后定的，结果偏乐观。真正的实时模拟盘需要一台在线服务器。`;
-const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}`]); };
+const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}${s.tf_name ? ' · ' + s.tf_name : ''}`]); };
 
 function bars(tf) {
   const src = R.ohlc; const out = [];
@@ -506,6 +507,8 @@ function renderAccount() {
     const p = s.pnl;
     return el('span', { className: 'ai' }, [stratTag(s.id), el('b', { textContent: `${sUsd(p)}`, className: cls(p) })]);
   }));
+  const sh = R.shuffle && R.shuffle.finals.length ? R.shuffle : null;
+  document.getElementById('shuffle').textContent = sh ? `稳健性：把同一时刻的开仓顺序随机打乱 ${sh.finals.length} 次，最终权益中位数 ${usd(d3.median(sh.finals))} USDT，范围 ${usd(d3.min(sh.finals))} ~ ${usd(d3.max(sh.finals))}；最大回撤中位数 ${d3.median(sh.dds).toFixed(1)}%。上面的数字只是其中一种顺序。` : '';
   drawEK(); renderPositions(); renderClosed();
 }
 

@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from engine import START_EQUITY, load_data
+from engine import START_EQUITY, TF_HOURS, TF_NAME, load_all
 from portfolio import PortfolioRules, run_portfolio
 
 HERE = Path(__file__).parent
@@ -26,31 +26,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(HERE / "results.json"))
     ap.add_argument("--out", default=str(HERE / "replay.json"))
+    ap.add_argument("--shuffles", type=int, default=20, help="随机开仓顺序重跑的次数")
     args = ap.parse_args()
     r = json.loads(Path(args.results).read_text())
     I = {i["id"]: i for i in r["individuals"]}
-    data = load_data()
+    data = load_all(tfs=r["meta"].get("tfs", ["1h"]))
     t0 = np.datetime64(r["meta"]["oos"][0])
-    t_last = min(d.t[-1] for d in data[:5]) + HOUR           # 以主流币的最新 K 线为准
+    t_last = min(d.t[-1] for d in data["1h"][:5]) + HOUR if data.get("1h") else min(d.t[-1] for v in data.values() for d in v[:5])
     t_end = t0 + ((t_last - t0) // np.timedelta64(4, "h")) * np.timedelta64(4, "h")
-    hours = np.arange(t0, t_end, HOUR)
-    nh = len(hours)
-
     # 一个账户：4 个物种冠军共用同一个资金池（规则见 portfolio.py），训练期得分高的策略优先
     ids = sorted(dict.fromkeys(r["species_champions"]), key=lambda x: -I[x]["train"]["fit"])
     rules = PortfolioRules(start_equity=START_EQUITY)
-    hrs, eq_total, open_pos, closed_raw, last_close = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, rules)
+    grid, eq_total, step_h, open_pos, closed_raw = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, rules)
     tstr = lambda t: str(t)[:16]
     sig = lambda v: float(f"{float(v):.6g}")
     positions = []
     for p in open_pos:
-        lc = last_close[p["ci"]] if np.isfinite(last_close[p["ci"]]) else p["entry"]
-        positions.append({"pair": data[p["ci"]].name, "side": int(p["side"]), "sid": ids[p["si"]], "since": tstr(p["t_entry"]),
+        lc = p["lc"]
+        positions.append({"pair": p["name"], "side": int(p["side"]), "sid": ids[p["si"]], "since": tstr(p["t_entry"]),
                           "entry": sig(p["entry"]), "last": sig(lc), "lev": rules.lev, "notional": round(p["qty"] * lc, 2),
                           "margin": round(p["margin"], 2), "float": round(p["side"] * p["qty"] * (lc - p["entry"]), 2),
                           "stop": sig(p["stop"]), "tp": sig(p["tp"])})
     positions.sort(key=lambda p: -p["notional"])
-    closed = [{"pair": data[t["ci"]].name, "side": int(t["side"]), "sid": ids[t["si"]], "te": tstr(t["t_entry"]), "tx": tstr(t["t_exit"]),
+    closed = [{"pair": t["name"], "side": int(t["side"]), "sid": ids[t["si"]], "te": tstr(t["t_entry"]), "tx": tstr(t["t_exit"]),
                "entry": sig(t["entry"]), "exit": sig(t["exit"]), "lev": rules.lev, "notional": round(t["qty"] * t["entry"], 2),
                "pnl": round(float(t["pnl"]), 2)} for t in closed_raw]
     closed.sort(key=lambda t: t["tx"], reverse=True)
@@ -58,9 +56,11 @@ def main():
     for k, sid in enumerate(ids):
         mine = [t for t in closed if t["sid"] == sid]
         op = [p for p in positions if p["sid"] == sid]
-        strategies.append({"id": sid, "species": I[sid]["species"], "desc": I[sid]["desc"], "n_closed": len(mine), "n_open": len(op),
+        tf = I[sid]["genes"].get("tf", "1h")
+        strategies.append({"id": sid, "species": I[sid]["species"], "desc": I[sid]["desc"], "tf": tf, "tf_name": TF_NAME[tf], "n_closed": len(mine), "n_open": len(op),
                            "pnl": round(sum(t["pnl"] for t in mine) + sum(p["float"] for p in op), 2)})
-    e4 = eq_total.reshape(-1, 4)
+    per4h = int(round(4 / step_h))
+    e4 = eq_total[: len(eq_total) // per4h * per4h].reshape(-1, per4h)
     prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
     ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
     stats = {"n": len(closed), "wins": int(sum(t["pnl"] > 0 for t in closed)), "realized": round(sum(t["pnl"] for t in closed), 2)}
@@ -69,9 +69,21 @@ def main():
     for st in strategies:
         print("  ", st["id"], st["n_closed"], st["n_open"], st["pnl"])
 
+    # 稳健性：随机打乱同一时刻的开仓顺序，看最终权益和回撤的分布
+    finals, dds = [], []
+    for seed in range(args.shuffles):
+        _, eq_s, _, _, _ = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end,
+                                         PortfolioRules(start_equity=START_EQUITY, order_seed=seed))
+        peak = np.maximum.accumulate(np.concatenate([[START_EQUITY], eq_s]))[1:]
+        finals.append(round(float(eq_s[-1]), 2))
+        dds.append(round(float(np.max((peak - eq_s) / peak)) * 100, 1))
+    if finals:
+        print(f"随机顺序 {len(finals)} 次：最终权益 中位 {np.median(finals):.1f}，范围 {min(finals):.1f} ~ {max(finals):.1f}")
+
     fmt = lambda x: pd.Timestamp(x).strftime("%Y-%m-%dT%H:%M")
     out = {"start": fmt(t0), "end": fmt(t_end), "bar_hours": 4, "start_equity": START_EQUITY, "strategies": strategies,
-           "ohlc": np.round(ohlc, 2).tolist(), "positions": positions, "closed": closed[:300], "closed_stats": stats, "rules": rules_d}
+           "ohlc": np.round(ohlc, 2).tolist(), "positions": positions, "closed": closed[:300], "closed_stats": stats, "rules": rules_d,
+           "shuffle": {"finals": finals, "dds": dds}}
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
     print(f"{len(ohlc)} 根 4h 权益 K 线 ({out['start']} ~ {out['end']}) -> {args.out}")
 

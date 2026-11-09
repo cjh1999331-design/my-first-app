@@ -21,7 +21,7 @@ import numpy as np
 
 from multiprocessing import Pool
 
-from engine import SPECIES, all_signals, backtest, daily_equity, load_data
+from engine import SPECIES, TF_HOURS, TF_NAME, all_signals, backtest, daily_equity, load_all
 
 W = {}  # 子进程共享的数据（fork 时继承）
 
@@ -62,6 +62,7 @@ SPECIFIC = {
 }
 TREND_CHOICES = [0, 50, 100, 150, 200, 300]
 DIRS = ["long", "short", "both"]
+TFS = ["15m", "1h", "4h", "1d"]   # 周期基因；--tfs 可以限制
 
 
 def clamp(v, lo, hi, is_int):
@@ -78,7 +79,7 @@ def fix(g):
 
 
 def random_genes(sp):
-    g = {"species": sp, "dir": random.choice(DIRS), "trend": random.choice(TREND_CHOICES)}
+    g = {"species": sp, "tf": random.choice(TFS), "dir": random.choice(DIRS), "trend": random.choice(TREND_CHOICES)}
     for k, (lo, hi, it) in {**COMMON, **SPECIFIC[sp]}.items():
         g[k] = clamp(random.uniform(lo, hi), lo, hi, it)
     return fix(g)
@@ -93,6 +94,8 @@ def mutate(p, strength=0.18):
         g["dir"] = random.choice(DIRS)
     if random.random() < 0.12:
         g["trend"] = random.choice(TREND_CHOICES)
+    if random.random() < 0.12:
+        g["tf"] = random.choice(TFS)
     return fix(g)
 
 
@@ -115,10 +118,13 @@ def describe(g):
         core = {"long": f"RSI 回升过 {g['lo']} 做多", "short": f"RSI 回落过 {g['hi']} 做空",
                 "both": f"RSI 回升过 {g['lo']} 做多 / 回落过 {g['hi']} 做空"}[g["dir"]]
     else:
-        core = f"突破 {g['n']} 小时高低点"
+        core = f"突破 {g['n']} 根 K 线高低点"
     trend = f" · EMA{g['trend']} 趋势过滤" if g["trend"] else ""
-    return (f"{SPECIES[sp]} · {core}{trend} · {d} · 止损 {g['stop_atr']}×ATR · 止盈 {g['tp_r']}R"
-            f" · 最长 {g['max_hold']}h · 风险 {round(g['risk'] * 100, 2)}%")
+    tf = g.get("tf", "1h")
+    hold_h = g["max_hold"] * TF_HOURS[tf]
+    hold = f"{hold_h / 24:.1f} 天" if hold_h >= 48 else f"{hold_h:g} 小时"
+    return (f"{SPECIES[sp]} · {TF_NAME[tf]} · {core}{trend} · {d} · 止损 {g['stop_atr']}×ATR · 止盈 {g['tp_r']}R"
+            f" · 最长 {g['max_hold']} 根（{hold}） · 风险 {round(g['risk'] * 100, 2)}%")
 
 
 def fold_edges(t0: str, t1: str, k: int):
@@ -173,13 +179,17 @@ def main():
     ap.add_argument("--neighbors", type=int, default=2)
     ap.add_argument("--stress-fee", type=float, default=0.0008)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--tfs", default="15m,1h,4h,1d", help="允许的周期，逗号分隔")
     args = ap.parse_args()
     global TRAIN
     TRAIN = (args.train_start, OOS[0])
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    data = load_data()
+    global TFS
+    TFS = args.tfs.split(",")
+    data = load_all(tfs=TFS)
+    print("数据：" + "，".join(f"{tf} {len(v)} 个币" for tf, v in data.items()), flush=True)
     tr0, tr1 = (np.datetime64(x) for x in TRAIN)
     oo0, oo1 = (np.datetime64(x) for x in OOS)
 
@@ -268,7 +278,7 @@ def main():
         ind["recent_trades"] = m["trade_list"][-8:]
 
     out = {
-        "meta": {"generations": args.generations, "per_species": args.per_species, "train": TRAIN, "oos": OOS,
+        "meta": {"generations": args.generations, "per_species": args.per_species, "train": TRAIN, "oos": OOS, "tfs": TFS,
                  "pairs": ["BTC", "ETH", "SOL", "BNB", "XRP"], "exchange": "OKX USDT 永续", "timeframe": "1h",
                  "created": time.strftime("%Y-%m-%d %H:%M"), "species": SPECIES,
                  "mode": args.mode, "folds": [[str(a)[:10], str(b)[:10]] for a, b in folds],

@@ -1,7 +1,9 @@
 """
 快速回测引擎（遗传算法专用）。
 
-- 数据：freqtrade 下载的 OKX 永续合约 1h K 线（user_data/data/okx/futures/*.feather）
+- 数据：freqtrade 下载的 OKX 永续合约 K 线（user_data/data/okx/futures/*.feather）
+- 周期是基因的一部分：15m（直接读取）、1h（直接读取）、4h / 1d（由 1h 合成）；
+  指标周期、最长持仓都按该周期的 K 线根数计算
 - 每个币对独立运行、各分 1/N 资金，结果合并
 - 信号在 K 线收盘时判断，下一根开盘价入场
 - 止损 = 入场价 ∓ stop_atr × ATR；止盈 = 止损距离 × tp_r；超过 max_hold 小时按收盘价离场
@@ -57,28 +59,54 @@ class PairData:
     c: np.ndarray
     atr: np.ndarray
     cache: dict
+    bar_h: float = 1.0  # 每根 K 线多少小时
+
+
+TF_HOURS = {"15m": 0.25, "1h": 1.0, "4h": 4.0, "1d": 24.0}
+TF_NAME = {"15m": "15 分钟", "1h": "1 小时", "4h": "4 小时", "1d": "日线"}
 
 
 def _ema(x: np.ndarray, n: int) -> np.ndarray:
     return pd.Series(x).ewm(span=n, adjust=False).mean().to_numpy()
 
 
-def load_data(pairs: list[str] | None = None) -> list[PairData]:
+def _read(p: str, tf: str) -> pd.DataFrame | None:
+    src = "15m" if tf == "15m" else "1h"
+    f = DATA_DIR / f"{p}_USDT_USDT-{src}-futures.feather"
+    if not f.exists():
+        return None
+    df = pd.read_feather(f).sort_values("date")
+    if tf in ("4h", "1d"):
+        rule = {"4h": "4h", "1d": "1D"}[tf]
+        df = (df.set_index("date").resample(rule, origin="epoch")
+              .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+              .dropna().reset_index())
+    return df
+
+
+def load_data(pairs: list[str] | None = None, tf: str = "1h") -> list[PairData]:
     out = []
     for p in pairs or default_pairs():
-        f = DATA_DIR / f"{p}_USDT_USDT-1h-futures.feather"
-        if not f.exists():
-            continue
-        df = pd.read_feather(f).sort_values("date")
-        if len(df) < 500:
+        df = _read(p, tf)
+        if df is None or len(df) * TF_HOURS[tf] < 500:
             continue
         o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
         prev_c = np.concatenate([[c[0]], c[:-1]])
         tr = np.maximum(h - l, np.maximum(abs(h - prev_c), abs(l - prev_c)))
         atr = pd.Series(tr).ewm(alpha=1 / 14, adjust=False).mean().to_numpy()
         t = df["date"].dt.tz_convert(None).to_numpy("datetime64[ns]")
-        out.append(PairData(p, t, o, h, l, c, atr, {}))
+        out.append(PairData(p, t, o, h, l, c, atr, {}, TF_HOURS[tf]))
     return out
+
+
+def load_all(pairs: list[str] | None = None, tfs=("15m", "1h", "4h", "1d")) -> dict[str, list[PairData]]:
+    """每个周期一组数据；没有下载的周期返回空列表。"""
+    return {tf: load_data(pairs, tf) for tf in tfs}
+
+
+def pick(data, g: dict) -> list[PairData]:
+    """按基因里的周期取数据；data 既可以是单个周期的列表，也可以是 load_all 的字典。"""
+    return data[g.get("tf", "1h")] if isinstance(data, dict) else data
 
 
 def ema(pd_: PairData, n: int) -> np.ndarray:
@@ -145,17 +173,18 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
 
 
 # ------------------------------------------------------------------ 回测
-def all_signals(g: dict, data: list[PairData]) -> list:
-    return [signals(g, d) for d in data]
+def all_signals(g: dict, data) -> list:
+    return [signals(g, d) for d in pick(data, g)]
 
 
 def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64,
              want_trades: bool = False, fee: float = FEE, min_trades: int = 30, sigs: list | None = None) -> dict:
+    data = pick(data, g)
     windows = []
     for idx, d in enumerate(data):
         i0 = int(np.searchsorted(d.t, t0))
         i1 = int(np.searchsorted(d.t, t1))
-        if i1 - i0 >= 300:
+        if (i1 - i0) * d.bar_h >= 300:
             windows.append((idx, d, i0, i1))
     eq0 = START_EQUITY / max(1, len(windows))
     exits_t, exits_pnl, trades = [], [], []
@@ -208,7 +237,7 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
                     exit_p = c[j]
                     break
                 j += 1
-            hours = j - e_i + 1
+            hours = (j - e_i + 1) * d.bar_h
             notional = qty * entry
             pnl = side * qty * (exit_p - entry) - notional * fee - qty * exit_p * fee - notional * FUNDING_PER_H * hours
             pnl = max(pnl, -E)  # 逐仓：最多亏光这一份

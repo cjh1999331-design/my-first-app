@@ -27,7 +27,8 @@ def main():
     labels = {"results_r1.json": ("第 1 轮", "单段训练 2024-02 起"),
               "results_r2.json": ("第 2 轮", "+ 滚动窗口、参数邻居、成本加压"),
               "results_r3.json": ("第 3 轮", "+ 训练期拉长到 2021-02 起"),
-              Path(args.results).name: ("第 4 轮", "+ 币种扩展到成交额前 100")}
+              "results_r4.json": ("第 4 轮", "+ 币种扩展到成交额前 100"),
+              Path(args.results).name: ("第 5 轮", "+ 周期基因（15 分钟 / 1 小时 / 4 小时 / 日线）")}
     for fn, (name, how) in labels.items():
         f = HERE / fn
         if not f.exists():
