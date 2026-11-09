@@ -79,9 +79,11 @@ def _read(p: str, tf: str) -> pd.DataFrame | None:
     df = pd.read_feather(f).sort_values("date")
     if tf in ("4h", "1d"):
         rule = {"4h": "4h", "1d": "1D"}[tf]
+        df = df.assign(date=df["date"].dt.tz_convert(None))   # 去掉时区再合成，按 UTC 0 点切分
         df = (df.set_index("date").resample(rule, origin="epoch")
               .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
               .dropna().reset_index())
+        df["date"] = df["date"].dt.tz_localize("UTC")
     return df
 
 
