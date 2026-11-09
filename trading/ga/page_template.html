@@ -31,6 +31,7 @@
   .logo b { font-size: 1.05rem; display: block; line-height: 1.2; }
   .logo span { font-size: 12px; color: var(--muted); }
   .champ-head { text-align: right; min-width: 0; }
+  @media (max-width: 560px) { .champ-head { text-align: left; width: 100%; display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; } .champ-head .s { width: 100%; } }
   .champ-head .k { font-size: 12px; color: var(--muted); }
   .champ-head .v { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .champ-head .s { font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -95,6 +96,46 @@
   .fbar .up { background: var(--good); } .fbar .dn { background: var(--bad); }
   .fv { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; }
   .fk { font-size: 11px; color: var(--muted); }
+  .tag { font-size: 11px; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+  .champ-head small, .acct small { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 5px 12px; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+  .acct { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+  .acct .acc-main { grid-column: 1 / -1; }
+  @media (min-width: 720px) { .acct { grid-template-columns: 2fr 1fr 1fr 1fr; } .acct .acc-main { grid-column: auto; } }
+  .acct .k { font-size: 12px; color: var(--muted); }
+  .acct .big { font-family: var(--mono); font-size: clamp(1.8rem, 8vw, 2.3rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .acct .mid { font-family: var(--mono); font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; min-width: 84px; }
+  .seg { display: inline-flex; }
+  .seg .btn { border-radius: 0; margin-left: -1px; }
+  .seg .btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; } .seg .btn:last-child { border-radius: 0 8px 8px 0; }
+  .seg .btn.on { color: var(--accent); border-color: var(--accent); position: relative; z-index: 1; }
+  .when { font-size: 12px; color: var(--muted); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+  .ptabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .ptab { font: inherit; font-size: 13px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 6px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .ptab.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  .ptab .live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; display: inline-block; }
+  .tri.up { border-bottom: 9px solid var(--good); } .tri.dn { border-top: 9px solid var(--bad); }
+  .sw { width: 14px; height: 0; border-top: 2px dashed; display: inline-block; background: none !important; }
+  .legend .sw[style*="--good"] { border-color: var(--good); } .legend .sw[style*="--bad"] { border-color: var(--bad); }
+  .lists { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 720px) { .lists { grid-template-columns: 1fr 1fr; } }
+  .lists h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+  .rows { display: flex; flex-direction: column; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rows .r { display: grid; grid-template-columns: 52px 30px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .rows .r .t { color: var(--muted); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rows .r b { font-family: var(--mono); }
+  .rows .empty { color: var(--muted); padding: 6px 0; }
+  .rows .r.new { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
+  @media (prefers-reduced-motion: reduce) { .rows .r.new { animation: none; } }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 
@@ -106,13 +147,14 @@
         <div><b>策略进化实验室</b><span id="meta-line"></span></div>
       </div>
       <div class="champ-head">
-        <div class="k">当前冠军 · 样本外收益</div>
-        <div class="v" id="h-oos"></div>
-        <div class="s" id="h-train"></div>
+        <div class="k">OKX 模拟权益 <span class="tag">回放</span></div>
+        <div class="v"><span id="h-eq">—</span><small> USDT</small></div>
+        <div class="s" id="h-chg"></div>
       </div>
     </div>
     <nav aria-label="页面导航">
-      <a href="#lineage" class="on">基因池</a>
+      <a href="#sim" class="on">模拟盘</a>
+      <a href="#lineage">基因池</a>
       <a href="#rounds">三轮对比</a>
       <a href="#detail">个体详情</a>
       <a href="#curve">进化曲线</a>
@@ -123,6 +165,34 @@
 </header>
 
 <main class="main">
+  <section class="card" id="sim">
+    <h2>模拟盘 · 冠军上线回放</h2>
+    <p class="sub" id="sim-sub"></p>
+    <div class="chips" id="strat-chips" role="tablist" aria-label="选择策略"></div>
+    <div class="acct">
+      <div class="acc-main"><div class="k">账户权益</div><div class="big"><span id="acc-eq">—</span><small> USDT</small></div></div>
+      <div><div class="k">近 24 小时</div><div class="mid" id="acc-24">—</div></div>
+      <div><div class="k">累计</div><div class="mid" id="acc-tot">—</div></div>
+      <div><div class="k">持仓 / 已平仓</div><div class="mid" id="acc-pos">—</div></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="sim-play" type="button" aria-label="播放回放">▶ 播放</button>
+      <div class="seg" role="group" aria-label="播放速度">
+        <button class="btn" data-speed="3" type="button">1×</button><button class="btn on" data-speed="12" type="button">4×</button><button class="btn" data-speed="48" type="button">16×</button>
+      </div>
+      <span class="when" id="sim-time"></span>
+    </div>
+    <input type="range" id="sim-scrub" min="0" value="0" step="1" aria-label="回放进度">
+    <div class="ptabs" id="pair-tabs" role="tablist" aria-label="选择币种"></div>
+    <div class="plotbox dark"><canvas id="kc" role="img" aria-label="4 小时 K 线，标出开仓、平仓、止损和止盈"></canvas></div>
+    <ul class="legend"><li><span class="tri up"></span>开多</li><li><span class="tri dn"></span>开空</li><li><span class="dot" style="background:var(--good)"></span>盈利平仓</li><li><span class="dot" style="background:var(--bad)"></span>亏损平仓</li><li><span class="sw" style="background:var(--good)"></span>止盈</li><li><span class="sw" style="background:var(--bad)"></span>止损</li></ul>
+    <div class="plotbox"><canvas id="ec" role="img" aria-label="模拟盘资金曲线"></canvas></div>
+    <div class="lists">
+      <div><h3>当前持仓</h3><div id="sim-open" class="rows"></div></div>
+      <div><h3>最近成交</h3><div id="sim-log" class="rows"></div></div>
+    </div>
+  </section>
+
   <section class="card" id="summary">
     <div class="stats" id="stats"></div>
     <p class="warn" id="verdict"></p>
@@ -138,6 +208,7 @@
   <section class="card" id="lineage">
     <h2>基因池 · 策略谱系</h2>
     <p class="sub">每个点是一个策略。颜色是物种，点越大训练期稳健得分越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
+    <div class="controls"><button class="btn primary" id="evo-play" type="button">▶ 播放进化</button><span class="when" id="evo-gen"></span></div>
     <ul class="legend" id="sp-legend"></ul>
     <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期稳健得分越高"></canvas></div>
   </section>
@@ -198,8 +269,6 @@ const M = (a) => ({ trades: a[0], ret: a[1], dd: a[2], win: a[3], pf: a[4], fit:
 // ---------- 头部和摘要
 const champ = I.get(D.champion);
 document.getElementById('meta-line').textContent = `${D.meta.exchange} · ${D.meta.timeframe} · ${GENS} 代`;
-const ho = document.getElementById('h-oos'); ho.textContent = pct(M(champ.oo).ret); ho.className = 'v ' + cls(M(champ.oo).ret);
-document.getElementById('h-train').textContent = `${champ.id} · 训练期 ${pct(M(champ.tr).ret)} · 稳健得分 ${M(champ.tr).fit.toFixed(2)}`;
 const passN = ALL.filter((x) => x.pass).length;
 const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
 const stat = (k, v, f, c = '') => el('div', { className: 'stat' }, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v ' + c, textContent: v }), el('div', { className: 'f', textContent: f })]);
@@ -222,84 +291,369 @@ for (const id of ['sp-legend', 'sp-legend2']) {
   if (id === 'sp-legend') ul.append(el('li', {}, [el('span', { className: 'ringdot' }), '当过物种冠军']));
 }
 
-// ---------- 谱系图（canvas）
+// ---------- 谱系图（canvas，粒子动画）
 const cv = document.getElementById('cv');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let layout = null;
 let selected = champ.id;
+let genCursor = GENS;
+let playEvo = null;
+const birthT = new Map();
+let flows = [];
 function ancestors(id) {
   const seen = new Set([id]); const q = [id];
   while (q.length) { const x = I.get(q.shift()); (x?.parents || []).forEach((p) => { if (!seen.has(p)) { seen.add(p); q.push(p); } }); }
   return seen;
 }
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+function setupCanvas(c, H) {
+  const W = c.parentElement.clientWidth; const dpr = Math.min(2, window.devicePixelRatio || 1);
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); c.style.height = H + 'px';
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, W, H, dpr };
+}
+const easeOutBack = (k) => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
 function drawLineage() {
-  const W = cv.parentElement.clientWidth;
-  const H = W < 560 ? 520 : 600;
-  const dpr = window.devicePixelRatio || 1;
-  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
-  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W0 = cv.parentElement.clientWidth;
+  const { ctx, W, H, dpr } = setupCanvas(cv, W0 < 560 ? 520 : 600);
   const m = { l: 10, r: 14, t: 26, b: 26 };
   const laneH = (H - m.t - m.b) / SP.length;
   const x = (g) => m.l + 6 + (g / GENS) * (W - m.l - m.r - 12);
   const fitMax = {}; SP.forEach((sp) => { fitMax[sp] = d3.max(ALL.filter((a) => a.sp === sp), (a) => M(a.tr).fit); });
+  const gmax = d3.max(SP, (s) => fitMax[s]);
   const pos = new Map();
   ALL.forEach((a) => {
     const lane = SP.indexOf(a.sp);
     const f = Math.max(-1, M(a.tr).fit);
     const t = (f + 1) / (fitMax[a.sp] + 1);
-    const y = m.t + lane * laneH + 10 + (1 - t) * (laneH - 22);
-    const jx = ((hash(a.id) % 9) - 4) * (W / GENS) * 0.09;
-    const r = 1.8 + 6 * Math.max(0, Math.min(1, M(a.tr).fit / d3.max(SP, (s) => fitMax[s])));
-    pos.set(a.id, { x: x(a.gen) + jx, y, r, a });
+    const h = hash(a.id);
+    const r = 1.8 + 6 * Math.max(0, Math.min(1, M(a.tr).fit / gmax));
+    pos.set(a.id, { x: x(a.gen) + ((h % 9) - 4) * (W / GENS) * 0.09, y: m.t + lane * laneH + 10 + (1 - t) * (laneH - 22), r, a,
+      ph: (h % 628) / 100, w: 0.0006 + (h % 97) / 97 * 0.0009, amp: 0.8 + Math.min(2.2, r * 0.25) });
   });
-  layout = { pos, W, H };
-  // 背景：物种分区
-  ctx.clearRect(0, 0, W, H);
-  ctx.font = `600 12px ${css('--sans')}`;
+  const col = { link: css('--link'), hl: css('--hl'), ring: css('--ring'), grid: css('--grid'), muted: css('--muted'), sp: {} };
+  SP.forEach((sp) => { col.sp[sp] = spColor(sp); });
+  // 静态层：分区、标签、刻度、连线
+  const st = document.createElement('canvas'); st.width = Math.round(W * dpr); st.height = Math.round(H * dpr);
+  const s = st.getContext('2d'); s.setTransform(dpr, 0, 0, dpr, 0, 0);
+  s.font = `600 12px ${css('--sans')}`;
   SP.forEach((sp, i) => {
     const y0 = m.t + i * laneH;
-    if (i) { ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke(); }
-    ctx.fillStyle = spColor(sp); ctx.globalAlpha = 0.9; ctx.fillText(SPN[sp], m.l + 2, y0 + 14); ctx.globalAlpha = 1;
+    if (i) { s.strokeStyle = col.grid; s.lineWidth = 1; s.beginPath(); s.moveTo(0, y0); s.lineTo(W, y0); s.stroke(); }
+    s.fillStyle = col.sp[sp]; s.fillText(SPN[sp], m.l + 2, y0 + 14);
   });
-  // 连线
-  const anc = ancestors(selected);
-  ctx.setLineDash([3, 3]); ctx.lineWidth = 0.7; ctx.strokeStyle = css('--link');
-  ctx.beginPath();
-  ALL.forEach((a) => { const p = pos.get(a.id); a.parents.forEach((pid) => { const q = pos.get(pid); if (q) { ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); } }); });
-  ctx.stroke(); ctx.setLineDash([]);
-  // 点：先画淘汰的，再画存活的
-  const order = [...ALL].sort((a, b) => (FINAL.has(a.id) - FINAL.has(b.id)) || (a.until - a.gen) - (b.until - b.gen));
-  order.forEach((a) => {
-    const p = pos.get(a.id);
-    const alive = FINAL.has(a.id);
-    const survived = a.until > a.gen;
-    ctx.globalAlpha = alive ? 1 : survived ? 0.55 : 0.22;
-    ctx.fillStyle = spColor(a.sp);
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
-    if (a.champN > 0) { ctx.globalAlpha = alive ? 1 : 0.6; ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 2, 0, Math.PI * 2); ctx.stroke(); }
-  });
-  ctx.globalAlpha = 1;
-  // 祖先链高亮
-  ctx.strokeStyle = css('--hl'); ctx.lineWidth = 2;
-  ctx.beginPath();
-  anc.forEach((id) => { const a = I.get(id); const p = pos.get(id); a.parents.forEach((pid) => { if (anc.has(pid)) { const q = pos.get(pid); ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); } }); });
-  ctx.stroke();
-  anc.forEach((id) => { const p = pos.get(id); ctx.fillStyle = spColor(p.a.sp); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(p.r, 3), 0, Math.PI * 2); ctx.fill(); });
-  const s = pos.get(selected);
-  ctx.strokeStyle = css('--hl'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 5, 0, Math.PI * 2); ctx.stroke();
-  // 代数刻度
-  ctx.fillStyle = css('--muted'); ctx.font = `11px ${css('--sans')}`;
+  const links = [];
+  s.setLineDash([3, 3]); s.lineWidth = 0.7; s.strokeStyle = col.link; s.beginPath();
+  ALL.forEach((a) => { if (a.gen > genCursor) return; const p = pos.get(a.id); a.parents.forEach((pid) => { const q = pos.get(pid); if (q) { s.moveTo(q.x, q.y); s.lineTo(p.x, p.y); links.push([q, p, col.sp[a.sp]]); } }); });
+  s.stroke(); s.setLineDash([]);
+  s.fillStyle = col.muted; s.font = `11px ${css('--sans')}`;
   const step = W < 560 ? 20 : 10;
-  for (let g = 0; g <= GENS - step * 0.75; g += step) { ctx.textAlign = g === 0 ? 'left' : 'center'; ctx.fillText(g === 0 ? '第 0 代' : String(g), x(g), H - 8); }
-  ctx.textAlign = 'right'; ctx.fillText(`第 ${GENS} 代`, W - m.r, H - 8); ctx.textAlign = 'left';
+  for (let g = 0; g <= GENS - step * 0.75; g += step) { s.textAlign = g === 0 ? 'left' : 'center'; s.fillText(g === 0 ? '第 0 代' : String(g), x(g), H - 8); }
+  s.textAlign = 'right'; s.fillText(`第 ${GENS} 代`, W - m.r, H - 8); s.textAlign = 'left';
+  const anc = ancestors(selected);
+  const chain = [];
+  anc.forEach((id) => { const a = I.get(id); if (a.gen > genCursor) return; const p = pos.get(id); a.parents.forEach((pid) => { if (anc.has(pid)) chain.push([pos.get(pid), p, col.hl]); }); });
+  layout = { ctx, W, H, st, pos, links, chain, anc, col, x };
+  if (!flows.length) flows = Array.from({ length: 170 }, (_, i) => ({ i: Math.floor(Math.random() * 1e6), p: Math.random(), v: 0.00025 + Math.random() * 0.0005, chain: i < 36 }));
+  document.getElementById('evo-gen').textContent = genCursor < GENS ? `第 ${genCursor} 代 / ${GENS}` : `${ALL.length.toLocaleString()} 个个体 · ${GENS} 代`;
+  requestLineage();
 }
+function floatPos(p, t) { return reduceMotion ? [p.x, p.y] : [p.x + p.amp * Math.sin(t * p.w + p.ph), p.y + p.amp * Math.cos(t * p.w * 0.83 + p.ph * 1.3)]; }
+function frameLineage(t, dt) {
+  const L = layout; if (!L) return;
+  const { ctx, W, H, col } = L;
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(L.st, 0, 0, W, H);
+  // 祖先链
+  ctx.strokeStyle = col.hl; ctx.lineWidth = 2; ctx.globalAlpha = 0.85; ctx.beginPath();
+  L.chain.forEach(([q, p]) => { ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); }); ctx.stroke(); ctx.globalAlpha = 1;
+  // 点：按物种 × 透明度分桶批量绘制
+  const buckets = new Map(); const rings = []; const pops = [];
+  for (const a of ALL) {
+    if (a.gen > genCursor) continue;
+    const p = L.pos.get(a.id);
+    const [px, py] = floatPos(p, t);
+    let r = p.r;
+    const bt = birthT.get(a.id);
+    if (bt !== undefined) { const k = (t - bt) / 500; if (k >= 1) birthT.delete(a.id); else { r = p.r * Math.max(0, easeOutBack(Math.max(0, k))); pops.push([px, py, p.r, k, a.sp]); } }
+    const alive = a.until >= genCursor;
+    const alpha = L.anc.has(a.id) || alive ? 1 : a.until > a.gen ? 0.5 : 0.2;
+    const key = a.sp + '|' + alpha;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(px, py, r);
+    if (a.champN > 0) rings.push(px, py, r, alpha);
+  }
+  buckets.forEach((arr, key) => {
+    const [sp, al] = key.split('|');
+    ctx.globalAlpha = +al; ctx.fillStyle = col.sp[sp]; ctx.beginPath();
+    for (let i = 0; i < arr.length; i += 3) { ctx.moveTo(arr[i] + arr[i + 2], arr[i + 1]); ctx.arc(arr[i], arr[i + 1], Math.max(0.1, arr[i + 2]), 0, 6.2832); }
+    ctx.fill();
+  });
+  ctx.strokeStyle = col.ring; ctx.lineWidth = 1.3;
+  for (let i = 0; i < rings.length; i += 4) { ctx.globalAlpha = Math.min(1, rings[i + 3] + 0.2); ctx.beginPath(); ctx.arc(rings[i], rings[i + 1], rings[i + 2] + 2, 0, 6.2832); ctx.stroke(); }
+  // 出生光环
+  pops.forEach(([px, py, r, k, sp]) => { ctx.globalAlpha = (1 - k) * 0.7; ctx.strokeStyle = col.sp[sp]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, r + 2 + k * 12, 0, 6.2832); ctx.stroke(); });
+  // 流动粒子
+  if (!reduceMotion && L.links.length) {
+    for (const f of flows) {
+      const pool = f.chain && L.chain.length ? L.chain : L.links;
+      const [q, p, c] = pool[f.i % pool.length];
+      f.p += f.v * dt * (f.chain ? 1.6 : 1);
+      if (f.p > 1) { f.p = 0; f.i = Math.floor(Math.random() * 1e6); }
+      const xx = q.x + (p.x - q.x) * f.p, yy = q.y + (p.y - q.y) * f.p;
+      ctx.globalAlpha = Math.sin(Math.PI * f.p) * (f.chain ? 1 : 0.75);
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(xx, yy, f.chain ? 2.2 : 1.4, 0, 6.2832); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // 选中
+  const sp0 = L.pos.get(selected);
+  if (sp0 && I.get(selected).gen <= genCursor) {
+    const [sx, sy] = floatPos(sp0, t);
+    ctx.strokeStyle = col.hl; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(sx, sy, sp0.r + 5 + (reduceMotion ? 0 : Math.sin(t / 260) * 1.6), 0, 6.2832); ctx.stroke();
+  }
+  if (genCursor < GENS) {
+    ctx.fillStyle = col.hl; ctx.font = `700 22px ${css('--mono')}`; ctx.textAlign = 'right';
+    ctx.fillText(`第 ${genCursor} 代`, W - 14, 22); ctx.textAlign = 'left';
+  }
+}
+let linVisible = true, linRaf = false, linLast = 0;
+function lineageLoop(t) {
+  const dt = Math.min(60, t - (linLast || t)); linLast = t;
+  if (playEvo) {
+    const g = Math.min(GENS, Math.floor((t - playEvo.t0) / 120));
+    if (g > genCursor) {
+      for (let k = genCursor + 1; k <= g; k++) ALL.forEach((a) => { if (a.gen === k) birthT.set(a.id, t); });
+      genCursor = g; if (genCursor >= GENS) playEvo = null; drawLineage();
+    }
+  }
+  frameLineage(t, dt);
+  if (linVisible && !reduceMotion) requestAnimationFrame(lineageLoop); else linRaf = false;
+}
+function requestLineage() {
+  if (reduceMotion || !linVisible) { frameLineage(performance.now(), 16); return; }
+  if (!linRaf) { linRaf = true; linLast = 0; requestAnimationFrame(lineageLoop); }
+}
+new IntersectionObserver((es) => { linVisible = es[0].isIntersecting; if (linVisible) requestLineage(); }).observe(cv);
+document.getElementById('evo-play').addEventListener('click', () => {
+  if (reduceMotion) { genCursor = GENS; drawLineage(); return; }
+  genCursor = 0; playEvo = { t0: performance.now() };
+  ALL.forEach((a) => { if (a.gen === 0) birthT.set(a.id, performance.now()); });
+  drawLineage();
+});
 cv.addEventListener('click', (ev) => {
   if (!layout) return;
   const r = cv.getBoundingClientRect(); const px = ev.clientX - r.left, py = ev.clientY - r.top;
   let best = null, bd = 16 * 16;
-  layout.pos.forEach((p, id) => { const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = id; } });
+  layout.pos.forEach((p, id) => { if (p.a.gen > genCursor) return; const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = id; } });
   if (best) select(best, false);
 });
+
+// ---------- 模拟盘回放
+const R = D.replay;
+const BARMS = R.bar_hours * 3600e3;
+const T0 = Date.parse(R.start + ':00Z');
+const STR = R.strategies.map((s) => ({ ...s, trades: s.trades.map((t) => ({ pair: t[0], side: t[1], te: t[2], tx: t[3], entry: t[4], exit: t[5], pnl: t[6], lev: t[7], stop: t[8], tp: t[9], ki: t[10], kx: t[11] })) }));
+const sim = { si: 0, pair: (STR[0].trades[STR[0].trades.length - 1] || { pair: 'BTC' }).pair, k: R.n - 1, playing: false, speed: 12, last: 0, partsK: [], partsE: [], newIds: new Set() };
+const fmtBar = (k) => d3.utcFormat('%Y-%m-%d %H:%M')(new Date(T0 + (Math.floor(k) + 1) * BARMS)) + ' UTC';
+const fmtPx = (v) => d3.format(v >= 10000 ? ',.0f' : v >= 1000 ? ',.1f' : v >= 10 ? ',.2f' : ',.4f')(v);
+const usd = (v) => d3.format(',.2f')(v);
+const sgnUsd = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + d3.format(',.2f')(Math.abs(v));
+document.getElementById('sim-sub').textContent = `假设进化选出的策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，用 OKX 永续真实 K 线逐根回放到 ${R.end.slice(0, 10)}。没有真实下单，网页也连不上交易所；真正的模拟盘需要一台在线服务器。`;
+
+// 策略切换
+const chips = document.getElementById('strat-chips');
+STR.forEach((s, i) => {
+  const b = el('button', { className: 'chip' + (i === 0 ? ' on' : ''), type: 'button', role: 'tab' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${s.id} · ${SPN[s.species]}${s.id === D.champion ? ' · 冠军' : ''}`]);
+  b.addEventListener('click', () => { sim.si = i; chips.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === i)); sim.partsK = []; sim.partsE = []; simRender(true); });
+  chips.append(b);
+});
+// 币种
+const ptabs = document.getElementById('pair-tabs');
+R.pairs.forEach((p) => {
+  const b = el('button', { className: 'ptab' + (p === sim.pair ? ' on' : ''), type: 'button', role: 'tab' }, [p + '/USDT']);
+  b.dataset.pair = p;
+  b.addEventListener('click', () => { sim.pair = p; ptabs.querySelectorAll('.ptab').forEach((c) => c.classList.toggle('on', c.dataset.pair === p)); sim.partsK = []; simRender(true); });
+  ptabs.append(b);
+});
+requestAnimationFrame(() => { const on = ptabs.querySelector('.ptab.on'); if (on) ptabs.scrollLeft = on.offsetLeft - 16; });
+// 控制
+const playBtn = document.getElementById('sim-play');
+const scrub = document.getElementById('sim-scrub');
+scrub.max = R.n - 1; scrub.value = sim.k;
+function setPlaying(on) {
+  sim.playing = on; playBtn.textContent = on ? '❚❚ 暂停' : '▶ 播放'; playBtn.setAttribute('aria-label', on ? '暂停回放' : '播放回放');
+  if (on) { if (sim.k >= R.n - 1) { sim.k = 0; sim.partsE = []; sim.partsK = []; } simKick(); }
+}
+playBtn.addEventListener('click', () => setPlaying(!sim.playing));
+document.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => {
+  sim.speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach((x) => x.classList.toggle('on', x === b));
+}));
+scrub.addEventListener('input', () => { sim.k = +scrub.value; lastK = sim.k; sim.partsK = []; sim.partsE = []; simRender(true); });
+
+// 画布
+const kc = document.getElementById('kc'), ec = document.getElementById('ec');
+let KC = null, EC = null;
+function simSetup() {
+  const W = kc.parentElement.clientWidth;
+  KC = setupCanvas(kc, W < 560 ? 300 : 380);
+  EC = setupCanvas(ec, W < 560 ? 150 : 180);
+}
+function burst(arr, x, y, color, n) {
+  if (reduceMotion) return;
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.2832, v = 0.04 + Math.random() * 0.16; arr.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.05, life: 1, r: 1 + Math.random() * 2.2, c: color }); }
+}
+function drawParts(ctx, arr, dt) {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const p = arr[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.00018 * dt; p.life -= dt / 900;
+    if (p.life <= 0) { arr.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+function openAt(s, k) { return s.trades.filter((t) => t.ki <= k && k < t.kx); }
+function closedBy(s, k) { return s.trades.filter((t) => t.kx <= k); }
+
+function drawK(t, dt) {
+  const { ctx, W, H } = KC; const k1 = Math.floor(sim.k);
+  const cs = R.candles[sim.pair]; const s = STR[sim.si];
+  const win = W < 560 ? 56 : 100; const k0 = Math.max(0, k1 - win + 1);
+  const padR = 62, padB = 22, padT = 12; const bw = (W - padR) / win;
+  const xx = (i) => (i - k0 + 0.5) * bw;
+  const trades = s.trades.filter((tr) => tr.pair === sim.pair && tr.ki <= k1 && tr.kx >= k0);
+  const open = trades.filter((tr) => k1 < tr.kx);
+  let lo = Infinity, hi = -Infinity;
+  for (let i = k0; i <= k1; i++) { lo = Math.min(lo, cs[i][2]); hi = Math.max(hi, cs[i][1]); }
+  open.forEach((tr) => { [tr.stop, tr.tp, tr.entry].forEach((v) => { if (v > lo * 0.85 && v < hi * 1.15) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); });
+  const pad = (hi - lo) * 0.08 || hi * 0.01; lo -= pad; hi += pad;
+  const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const c = { good: css('--good'), bad: css('--bad'), grid: css('--grid'), muted: css('--muted'), fg: css('--fg'), acc: css('--accent'), panel: css('--panel') };
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
+  const ticks = d3.scaleLinear().domain([lo, hi]).ticks(5);
+  ticks.forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(fmtPx(v), W - padR + 6, y); });
+  ctx.textBaseline = 'alphabetic';
+  [0.1, 0.5, 0.9].forEach((f) => { const i = k0 + Math.floor(f * (Math.min(win, k1 - k0 + 1) - 1)); ctx.fillStyle = c.muted; ctx.textAlign = 'center'; ctx.fillText(d3.utcFormat('%m-%d %H时')(new Date(T0 + i * BARMS)), xx(i), H - 6); });
+  ctx.textAlign = 'left';
+  // K 线
+  const body = Math.max(1, bw * 0.62);
+  for (let i = k0; i <= k1; i++) {
+    const [o, h, l, cl] = cs[i]; const up = cl >= o; const col = up ? c.good : c.bad; const x = xx(i);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yy(h)); ctx.lineTo(x, yy(l)); ctx.stroke();
+    const y1 = yy(Math.max(o, cl)), y2 = yy(Math.min(o, cl));
+    ctx.fillStyle = col; ctx.globalAlpha = i === k1 && sim.playing ? 0.75 + 0.25 * Math.sin(t / 120) : 1;
+    ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1)); ctx.globalAlpha = 1;
+  }
+  // 交易
+  trades.forEach((tr) => {
+    const xe = xx(Math.max(tr.ki, k0)), ye = yy(tr.entry);
+    if (tr.kx <= k1) {
+      const xq = xx(tr.kx), yq = yy(tr.exit);
+      ctx.strokeStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.globalAlpha = 0.7; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(xe, ye); ctx.lineTo(xq, yq); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.fillStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.strokeStyle = c.panel; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(xq, yq, 4, 0, 6.2832); ctx.fill(); ctx.stroke();
+      if (sim.newIds.has(tr)) { burst(sim.partsK, xq, yq, tr.pnl >= 0 ? c.good : c.bad, 26); sim.newIds.delete(tr); }
+    } else {
+      [[tr.entry, c.acc, '开仓', []], [tr.stop, c.bad, '止损', [4, 4]], [tr.tp, c.good, '止盈', [4, 4]]].forEach(([v, col, label, dash]) => {
+        const y = yy(v); if (y < padT - 2 || y > H - padB + 2) return;
+        ctx.strokeStyle = col; ctx.setLineDash(dash); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(xe, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = col; ctx.font = `600 11px ${css('--sans')}`; ctx.textAlign = 'right'; ctx.fillText(label, W - padR - 4, y - 4); ctx.textAlign = 'left';
+      });
+    }
+    if (tr.ki >= k0) {
+      const cdl = cs[tr.ki]; const up = tr.side > 0; const yb = up ? yy(cdl[2]) + 6 : yy(cdl[1]) - 6;
+      ctx.fillStyle = up ? c.good : c.bad; ctx.beginPath();
+      if (up) { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb + 9); ctx.lineTo(xe + 5, yb + 9); } else { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb - 9); ctx.lineTo(xe + 5, yb - 9); }
+      ctx.fill();
+    }
+  });
+  // 最新价
+  const last = cs[k1]; const ly = yy(last[3]); const lc = last[3] >= last[0] ? c.good : c.bad;
+  ctx.strokeStyle = lc; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W - padR, ly); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.fillStyle = lc; ctx.fillRect(W - padR + 2, ly - 9, padR - 4, 18);
+  ctx.fillStyle = '#fff'; ctx.font = `600 11px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillText(fmtPx(last[3]), W - padR + 6, ly); ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = c.fg; ctx.font = `600 12px ${css('--sans')}`; ctx.fillText(`${sim.pair}/USDT 永续 · 4H`, 6, 14);
+  drawParts(ctx, sim.partsK, dt);
+}
+
+function drawE(t, dt) {
+  const { ctx, W, H } = EC; const s = STR[sim.si]; const eq = s.equity; const k1 = Math.floor(sim.k);
+  const padL = 46, padR = 10, padT = 12, padB = 18;
+  const lo = Math.min(R.start_equity, d3.min(eq)) * 0.995, hi = Math.max(R.start_equity, d3.max(eq)) * 1.005;
+  const xx = (i) => padL + (i / (R.n - 1)) * (W - padL - padR);
+  const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const c = { acc: css('--accent'), grid: css('--grid'), muted: css('--muted'), good: css('--good'), bad: css('--bad') };
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
+  d3.scaleLinear().domain([lo, hi]).ticks(3).forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(d3.format(',')(v), 2, y); });
+  ctx.textBaseline = 'alphabetic';
+  const by = yy(R.start_equity); ctx.strokeStyle = c.muted; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(padL, by); ctx.lineTo(W - padR, by); ctx.stroke(); ctx.setLineDash([]);
+  const up = eq[k1] >= R.start_equity; const lc = up ? c.good : c.bad;
+  const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+  grad.addColorStop(0, lc + '55'); grad.addColorStop(1, lc + '00');
+  ctx.beginPath(); ctx.moveTo(xx(0), H - padB);
+  const step = Math.max(1, Math.floor(R.n / (W - padL)));
+  for (let i = 0; i <= k1; i += step) ctx.lineTo(xx(i), yy(eq[i]));
+  ctx.lineTo(xx(k1), yy(eq[k1])); ctx.lineTo(xx(k1), H - padB); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath(); for (let i = 0; i <= k1; i += step) { const f = i === 0 ? 'moveTo' : 'lineTo'; ctx[f](xx(i), yy(eq[i])); } ctx.lineTo(xx(k1), yy(eq[k1]));
+  ctx.strokeStyle = lc; ctx.lineWidth = 1.8; ctx.stroke();
+  const hx = xx(k1), hy = yy(eq[k1]);
+  const pulse = reduceMotion ? 0 : (Math.sin(t / 220) + 1) / 2;
+  ctx.globalAlpha = 0.25 + 0.2 * pulse; ctx.fillStyle = lc; ctx.beginPath(); ctx.arc(hx, hy, 7 + pulse * 4, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = c.muted; ctx.font = `11px ${css('--sans')}`; ctx.fillText('资金曲线', padL + 2, padT + 2);
+  if (sim.burstE) { sim.burstE.forEach((tr) => burst(sim.partsE, hx, hy, tr.pnl >= 0 ? c.good : c.bad, Math.min(40, 8 + Math.abs(tr.pnl) * 1.5))); sim.burstE = null; }
+  drawParts(ctx, sim.partsE, dt);
+}
+
+function renderAccount() {
+  const s = STR[sim.si]; const k1 = Math.floor(sim.k); const eq = s.equity[k1];
+  const d24 = eq - s.equity[Math.max(0, k1 - 6)]; const tot = eq / R.start_equity - 1;
+  document.getElementById('acc-eq').textContent = usd(eq);
+  const a24 = document.getElementById('acc-24'); a24.textContent = `${sgnUsd(d24)}`; a24.className = 'mid ' + cls(d24);
+  const at = document.getElementById('acc-tot'); at.textContent = pct(tot * 100); at.className = 'mid ' + cls(tot);
+  const open = openAt(s, k1); const closed = closedBy(s, k1);
+  document.getElementById('acc-pos').textContent = `${open.length} / ${closed.length}`;
+  document.getElementById('h-eq').textContent = usd(eq);
+  const hc = document.getElementById('h-chg'); hc.replaceChildren(el('span', { className: cls(d24), textContent: `24h ${sgnUsd(d24)}` }), ' · ', el('span', { className: cls(tot), textContent: `累计 ${pct(tot * 100)}` }), ` · ${s.id}`);
+  document.getElementById('sim-time').textContent = fmtBar(k1);
+  if (+scrub.value !== k1) scrub.value = k1;
+  ptabs.querySelectorAll('.ptab').forEach((b) => { const has = open.some((tr) => tr.pair === b.dataset.pair); const dot = b.querySelector('.live'); if (has && !dot) b.prepend(el('span', { className: 'live' })); if (!has && dot) dot.remove(); });
+  const row = (tr, k, isNew) => {
+    const cl = k1 < tr.kx ? cs1(tr) : null;
+    const pnlTxt = cl !== null ? `浮 ${pct(cl)}` : sgnUsd(tr.pnl);
+    const v = cl !== null ? cl : tr.pnl;
+    return el('div', { className: 'r' + (isNew ? ' new' : '') }, [el('b', { textContent: tr.pair }), el('span', { textContent: tr.side > 0 ? '多' : '空', className: tr.side > 0 ? 'good' : 'bad' }),
+      el('span', { className: 't', textContent: `${(k1 < tr.kx ? tr.te : tr.tx).slice(5).replace('T', ' ')} · ${tr.lev.toFixed(1)}x` }), el('b', { textContent: pnlTxt, className: cls(v) })]);
+  };
+  const ob = document.getElementById('sim-open');
+  ob.replaceChildren(...(open.length ? open.map((tr) => row(tr)) : [el('div', { className: 'empty', textContent: '空仓' })]));
+  const lb = document.getElementById('sim-log');
+  const recent = closed.slice(-6).reverse();
+  lb.replaceChildren(...(recent.length ? recent.map((tr) => row(tr, k1, sim.playing && tr.kx > k1 - 2)) : [el('div', { className: 'empty', textContent: '还没有成交' })]));
+}
+// 未平仓浮动收益（按保证金算，含杠杆）
+function cs1(tr) { const c = R.candles[tr.pair][Math.floor(sim.k)][3]; return tr.side * (c / tr.entry - 1) * tr.lev * 100; }
+
+let simRaf = false, simLast = 0, simVisible = true, lastK = Math.floor(sim.k);
+function simRender(full) { if (full) renderAccount(); const t = performance.now(); drawK(t, 16); drawE(t, 16); }
+function simLoop(t) {
+  const dt = Math.min(60, t - (simLast || t)); simLast = t;
+  if (sim.playing) {
+    sim.k = Math.min(R.n - 1, sim.k + sim.speed * dt / 1000);
+    const k1 = Math.floor(sim.k);
+    if (k1 !== lastK) {
+      const s = STR[sim.si];
+      const done = s.trades.filter((tr) => tr.kx > lastK && tr.kx <= k1);
+      if (done.length) { sim.burstE = done; done.forEach((tr) => { if (tr.pair === sim.pair) sim.newIds.add(tr); }); }
+      lastK = k1; renderAccount();
+    }
+    if (sim.k >= R.n - 1) setPlaying(false);
+  }
+  drawK(t, dt); drawE(t, dt);
+  if (simVisible && (sim.playing || sim.partsK.length || sim.partsE.length || !reduceMotion)) requestAnimationFrame(simLoop); else simRaf = false;
+}
+function simKick() { lastK = Math.floor(sim.k); if (!simRaf) { simRaf = true; simLast = 0; requestAnimationFrame(simLoop); } }
+new IntersectionObserver((es) => { simVisible = es[0].isIntersecting; if (simVisible) simKick(); }).observe(document.getElementById('sim'));
 
 // ---------- 详情
 function select(id, scroll = true) {
@@ -450,7 +804,7 @@ document.getElementById('champ-body').append(...champIds.map((id) => {
 // 导航高亮
 const links = [...document.querySelectorAll('nav a')];
 const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((l) => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
-['rounds', 'lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
+['sim', 'rounds', 'lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
 
 function drawRounds() {
   const tb = document.getElementById('round-body'); tb.replaceChildren(...D.rounds.map((r) => el('tr', { style: 'cursor:default' }, [
@@ -478,7 +832,7 @@ function drawRounds() {
   keys.forEach(([k, label], i) => { const xx = i * Math.min(170, (W - m.l) / 2); lg.append('rect').attr('x', xx).attr('y', -9).attr('width', 10).attr('height', 10).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85); lg.append('text').attr('x', xx + 14).text(label); });
 }
 
-function drawAll() { drawRounds(); drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
+function drawAll() { simSetup(); simRender(true); drawRounds(); drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
 drawAll();
 let rt, lastW = innerWidth;
 addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(drawAll, 150); });

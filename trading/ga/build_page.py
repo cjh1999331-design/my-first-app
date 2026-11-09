@@ -42,9 +42,17 @@ def main():
                        "final_oos": round(sum(i["oos"]["ret"] for i in fin) / len(fin), 1),
                        "top_oos": round(sum(i["oos"]["ret"] for i in top) / len(top), 1),
                        "champ": ch["id"], "champ_train": ch["train"]["ret"], "champ_oos": ch["oos"]["ret"]})
+    replay = None
+    rp = HERE / "replay.json"
+    if rp.exists():
+        rj = json.loads(rp.read_text())
+        for st in rj["strategies"]:
+            st["trades"] = [[t["pair"], t["side"], t["te"], t["tx"], t["entry"], t["exit"], t["pnl"], t["lev"],
+                             t["stop"], t["tp"], t["ki"], t["kx"]] for t in st["trades"]]
+        replay = rj
     page = {"meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
             "oos_best": d["oos_best"], "final_population": d["final_population"], "history": d["history"],
-            "inds": inds, "curves": curves, "trades": trades, "rounds": rounds}
+            "inds": inds, "curves": curves, "trades": trades, "rounds": rounds, "replay": replay}
     blob = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = (HERE / "page_template.html").read_text().replace("__DATA__", blob)
     Path(args.out).write_text(html)

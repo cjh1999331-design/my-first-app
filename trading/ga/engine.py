@@ -196,7 +196,8 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
             exits_pnl.append(pnl)
             if want_trades:
                 trades.append((d.name, str(d.t[e_i])[:16], str(d.t[j])[:16], side, round(float(entry), 6),
-                               round(float(exit_p), 6), round(float(pnl), 2), round(notional / max(E - pnl, 1e-9), 2)))
+                               round(float(exit_p), 6), round(float(pnl), 2), round(notional / max(E - pnl, 1e-9), 2),
+                               float(qty), round(float(stop), 6), round(float(tp), 6)))
             i = j + 1
             k += 1
     return _metrics(exits_t, exits_pnl, t0, t1, trades if want_trades else None, min_trades)

@@ -8,3 +8,4 @@ evolve/runs/
 __pycache__/
 .venv/
 ga/results.json
+ga/replay.json
