@@ -98,6 +98,43 @@ def describe(g):
             f" · 最长 {g['max_hold']}h · 风险 {round(g['risk'] * 100, 2)}%")
 
 
+def fold_edges(t0: str, t1: str, k: int):
+    a, b = np.datetime64(t0), np.datetime64(t1)
+    step = (b - a) / k
+    return [(a + step * i, a + step * (i + 1)) for i in range(k)]
+
+
+def fold_score(m: dict) -> float:
+    """单段得分：年化收益 / 回撤，截断到 [-3, 3]，避免某一段的极端值主导。"""
+    return float(np.clip(m["fit"], -3, 3))
+
+
+def robust_eval(genes, data, folds, stress_fee):
+    """在每个时间段分别回测（加压手续费），返回 (得分, 各段收益%)。"""
+    scores, rets, trades = [], [], 0
+    for f0, f1 in folds:
+        m = backtest(genes, data, f0, f1, fee=stress_fee, min_trades=8)
+        scores.append(fold_score(m))
+        rets.append(m["ret"])
+        trades += m["trades"]
+    sc = np.array(scores)
+    base = float(sc.mean() - 0.5 * sc.std())
+    profitable = sum(r > 0 for r in rets)
+    need = len(folds) - 1
+    if profitable < need:
+        base -= (need - profitable) * 1.0
+    if trades < 40:
+        base -= (40 - trades) / 40
+    return base, rets
+
+
+def neighbor(genes, scale=0.10):
+    g = copy.deepcopy(genes)
+    for k, (lo, hi, it) in {**COMMON, **SPECIFIC[g["species"]]}.items():
+        g[k] = clamp(g[k] * (1 + random.uniform(-scale, scale)), lo, hi, it)
+    return fix(g)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--generations", type=int, default=60)
@@ -105,7 +142,15 @@ def main():
     ap.add_argument("--elite", type=int, default=2)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--out", default=str(Path(__file__).parent / "results.json"))
+    ap.add_argument("--mode", choices=["robust", "simple"], default="robust",
+                    help="robust：滚动窗口 + 参数邻居 + 成本加压；simple：第 1 轮的单段训练打分")
+    ap.add_argument("--folds", type=int, default=6)
+    ap.add_argument("--train-start", default="2021-02-01", help="训练起点；结束点固定为样本外起点")
+    ap.add_argument("--neighbors", type=int, default=2)
+    ap.add_argument("--stress-fee", type=float, default=0.0008)
     args = ap.parse_args()
+    global TRAIN
+    TRAIN = (args.train_start, OOS[0])
     random.seed(args.seed)
     np.random.seed(args.seed)
 
@@ -113,6 +158,7 @@ def main():
     tr0, tr1 = (np.datetime64(x) for x in TRAIN)
     oo0, oo1 = (np.datetime64(x) for x in OOS)
 
+    folds = fold_edges(TRAIN[0], TRAIN[1], args.folds)
     inds: dict[str, dict] = {}
     counter = {sp: 0 for sp in SPECIES}
     short = {"vol_breakout": "v", "ma_cross": "m", "rsi_revert": "r", "channel": "c"}
@@ -124,9 +170,18 @@ def main():
         tr = backtest(genes, data, tr0, tr1)
         oo = backtest(genes, data, oo0, oo1)
         strip = lambda m: {k: v for k, v in m.items() if not k.startswith("_")}
+        train = strip(tr)
+        extra = {}
+        if args.mode == "robust":
+            base, rets = robust_eval(genes, data, folds, args.stress_fee)
+            nb = [robust_eval(neighbor(genes), data, folds, args.stress_fee)[0] for _ in range(args.neighbors)]
+            score = 0.5 * base + 0.5 * min(nb) if nb else base
+            train["calmar"] = train["fit"]
+            train["fit"] = round(score, 3)
+            extra = {"folds": rets, "fold_score": round(base, 3), "neighbor_min": round(min(nb), 3) if nb else None}
         ind = {"id": iid, "species": sp, "gen": gen, "origin": origin, "parents": parents,
-               "genes": genes, "desc": describe(genes), "train": strip(tr), "oos": strip(oo),
-               "alive_until": gen, "champ_gens": []}
+               "genes": genes, "desc": describe(genes), "train": train, "oos": strip(oo),
+               "alive_until": gen, "champ_gens": [], **extra}
         ind["oos_pass"] = oo["ret"] > 0 and oo["dd"] < 30 and oo["trades"] >= 10
         inds[iid] = ind
         return ind
@@ -190,7 +245,9 @@ def main():
     out = {
         "meta": {"generations": args.generations, "per_species": args.per_species, "train": TRAIN, "oos": OOS,
                  "pairs": ["BTC", "ETH", "SOL", "BNB", "XRP"], "exchange": "OKX USDT 永续", "timeframe": "1h",
-                 "created": time.strftime("%Y-%m-%d %H:%M"), "species": SPECIES},
+                 "created": time.strftime("%Y-%m-%d %H:%M"), "species": SPECIES,
+                 "mode": args.mode, "folds": [[str(a)[:10], str(b)[:10]] for a, b in folds],
+                 "stress_fee": args.stress_fee, "neighbors": args.neighbors},
         "champion": champion["id"], "species_champions": [i["id"] for i in species_champs], "oos_best": oos_best["id"],
         "final_population": [i["id"] for i in final],
         "history": history, "individuals": list(inds.values()), "curves": curves,

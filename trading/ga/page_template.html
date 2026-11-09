@@ -46,7 +46,7 @@
   @media (min-width: 720px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   .stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
   .stat .k { font-size: 12px; color: var(--muted); }
-  .stat .v { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .v { font-family: var(--mono); font-size: clamp(1.05rem, 4.6vw, 1.3rem); white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
   .stat .f { font-size: 12px; color: var(--muted); }
   .good { color: var(--good); } .bad { color: var(--bad); }
   .plotbox { position: relative; background: var(--plot); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
@@ -88,6 +88,13 @@
   details { font-size: 13px; color: var(--muted); }
   details summary { cursor: pointer; color: var(--fg); font-weight: 600; }
   details ul { padding-left: 1.2em; max-width: 75ch; }
+  .folds { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .fold { text-align: center; min-width: 0; }
+  .fbar { height: 36px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+  .fbar span { width: 60%; border-radius: 3px 3px 0 0; }
+  .fbar .up { background: var(--good); } .fbar .dn { background: var(--bad); }
+  .fv { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .fk { font-size: 11px; color: var(--muted); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 
@@ -106,6 +113,7 @@
     </div>
     <nav aria-label="页面导航">
       <a href="#lineage" class="on">基因池</a>
+      <a href="#rounds">三轮对比</a>
       <a href="#detail">个体详情</a>
       <a href="#curve">进化曲线</a>
       <a href="#overfit">过拟合检验</a>
@@ -120,39 +128,47 @@
     <p class="warn" id="verdict"></p>
   </section>
 
+  <section class="card" id="rounds">
+    <h2>三轮对比：过拟合减轻了，但还没找到真优势</h2>
+    <p class="sub">每一轮都是 70 代、2280 个个体，样本外区间相同（2025-06-01 ~ 2026-11-01）。样本外只用来检验，从没参与选择。</p>
+    <div class="scroll"><table class="champs"><thead><tr><th>轮次</th><th style="text-align:left">方法</th><th>最后一代样本外合格</th><th>最后一代样本外平均</th><th>训练前 100 名样本外平均</th><th>冠军 训练 → 样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
+    <div class="chart" id="c-rounds"></div>
+  </section>
+
   <section class="card" id="lineage">
     <h2>基因池 · 策略谱系</h2>
-    <p class="sub">每个点是一个策略。颜色是物种，点越大训练期适应度越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
+    <p class="sub">每个点是一个策略。颜色是物种，点越大训练期稳健得分越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
     <ul class="legend" id="sp-legend"></ul>
-    <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期适应度越高"></canvas></div>
+    <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期稳健得分越高"></canvas></div>
   </section>
 
   <section class="card" id="detail" aria-live="polite"></section>
 
   <section class="card" id="curve">
     <h2>每个物种的最高适应度</h2>
-    <p class="sub">每一代各物种排第一的训练期适应度（年化收益 ÷ 最大回撤）。阶梯上升说明找到了更好的基因。</p>
+    <p class="sub">每一代各物种排第一的稳健得分。得分 = 训练期 6 段各自得分的平均 − 0.5×波动，再和参数扰动后的“邻居”取折中；赚钱的段数少于 5 段会扣分。阶梯上升说明找到了更好的基因。</p>
     <ul class="legend" id="sp-legend2"></ul>
     <div class="chart" id="c-curve"></div>
   </section>
 
   <section class="card" id="overfit">
-    <h2>过拟合检验：训练分高，样本外未必好</h2>
-    <p class="sub">全部个体，横轴是训练期适应度，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。实际右边的高分个体在样本外大多亏钱。</p>
+    <h2>过拟合检验：训练分和样本外收益的关系</h2>
+    <p class="sub">全部个体，横轴是训练期稳健得分，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。这一轮右边的高分个体大多集中在 0 附近小亏，比第 1 轮好，但仍没有明显往上走。</p>
     <div class="chart" id="c-scatter"></div>
   </section>
 
   <section class="card" id="champs">
     <h2>物种冠军</h2>
     <p class="sub">最后一代每个物种训练期排名第一的个体，以及全部个体里样本外表现最好的一个。点一行查看详情。</p>
-    <div class="scroll"><table class="champs"><thead><tr><th>个体</th><th>物种</th><th>训练收益</th><th>训练回撤</th><th>适应度</th><th>样本外收益</th><th>样本外回撤</th></tr></thead><tbody id="champ-body"></tbody></table></div>
+    <div class="scroll"><table class="champs"><thead><tr><th>个体</th><th>物种</th><th>训练收益</th><th>训练回撤</th><th>稳健得分</th><th>样本外收益</th><th>样本外回撤</th></tr></thead><tbody id="champ-body"></tbody></table></div>
     <details>
       <summary>回测方法和局限</summary>
       <ul>
         <li>数据：OKX USDT 永续 1 小时 K 线，BTC ETH SOL BNB XRP，每个币对分 1/5 资金独立运行。</li>
         <li>信号在 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
         <li>每笔风险 = 账户 × 风险基因；名义仓位最高 10 倍杠杆。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
-        <li>适应度 = 年化收益 ÷ max(最大回撤, 5%)，训练期少于 30 笔会扣分。选择只看训练期。</li>
+        <li>稳健得分：训练期切成 6 段，每段单独回测（手续费按 0.08% 加压），每段得分 = 年化收益 ÷ max(回撤, 5%)，截断到 ±3；总分 = 平均 − 0.5×标准差，赚钱段数少于 5 段每少一段扣 1 分；再把参数随机扰动 ±10% 生成 2 个邻居，总分 = 0.5×本体 + 0.5×最差邻居。选择只看训练期。</li>
+        <li>样本外区间已经看过三次结果了，再根据它挑策略就会“偷看答案”。真正的下一次检验应该是之后的新行情（模拟盘）。</li>
         <li>“样本外合格”= 样本外收益 &gt; 0、回撤 &lt; 30%、至少 10 笔交易。</li>
         <li>这是为进化提速写的简化回测，没有爆仓、滑点和盘口模型；候选策略上线前要用 freqtrade 完整回测。</li>
         <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
@@ -168,7 +184,7 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 const SP = Object.keys(D.meta.species);
 const SPN = D.meta.species;
 const spColor = (sp) => css('--sp-' + sp);
-const I = new Map(D.inds.map((r) => { const o = { id: r[0], sp: SP[r[1]], gen: r[2], origin: r[3], parents: r[4], desc: r[5], tr: r[6], oo: r[7], pass: !!r[8], until: r[9], champN: r[10] }; return [o.id, o]; }));
+const I = new Map(D.inds.map((r) => { const o = { id: r[0], sp: SP[r[1]], gen: r[2], origin: r[3], parents: r[4], desc: r[5], tr: r[6], oo: r[7], pass: !!r[8], until: r[9], champN: r[10], folds: r[11] }; return [o.id, o]; }));
 const ALL = [...I.values()];
 const FINAL = new Set(D.final_population);
 const SC = new Set(D.species_champions);
@@ -183,18 +199,18 @@ const M = (a) => ({ trades: a[0], ret: a[1], dd: a[2], win: a[3], pf: a[4], fit:
 const champ = I.get(D.champion);
 document.getElementById('meta-line').textContent = `${D.meta.exchange} · ${D.meta.timeframe} · ${GENS} 代`;
 const ho = document.getElementById('h-oos'); ho.textContent = pct(M(champ.oo).ret); ho.className = 'v ' + cls(M(champ.oo).ret);
-document.getElementById('h-train').textContent = `${champ.id} · 训练期 ${pct(M(champ.tr).ret)} · 适应度 ${M(champ.tr).fit.toFixed(2)}`;
+document.getElementById('h-train').textContent = `${champ.id} · 训练期 ${pct(M(champ.tr).ret)} · 稳健得分 ${M(champ.tr).fit.toFixed(2)}`;
 const passN = ALL.filter((x) => x.pass).length;
 const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
 const stat = (k, v, f, c = '') => el('div', { className: 'stat' }, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v ' + c, textContent: v }), el('div', { className: 'f', textContent: f })]);
 document.getElementById('stats').append(
   stat('进化代数', String(GENS), `每物种 ${D.meta.per_species} 个 · ${SP.length} 个物种`),
   stat('回测过的个体', ALL.length.toLocaleString(), `训练期 ${D.meta.train[0]} ~ ${D.meta.train[1]}`),
-  stat('冠军训练适应度', M(champ.tr).fit.toFixed(2), `收益 ${pct(M(champ.tr).ret)} · 回撤 ${pct(M(champ.tr).dd, false)}`),
+  stat('冠军稳健得分', M(champ.tr).fit.toFixed(2), `收益 ${pct(M(champ.tr).ret)} · 回撤 ${pct(M(champ.tr).dd, false)}`),
   stat('样本外合格', `${passN} / ${ALL.length}`, `最后一代：${finalPass} / ${D.final_population.length}`, finalPass ? 'good' : 'bad'));
 document.getElementById('verdict').textContent = finalPass === 0
-  ? `最后一代 ${D.final_population.length} 个个体在样本外（${D.meta.oos[0]} ~ ${D.meta.oos[1]}）全部不合格，冠军 ${champ.id} 训练期赚 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}。进化把训练数据“背”下来了，没有学到能延续的规律，暂时不要拿去交易。`
-  : `最后一代有 ${finalPass} 个个体样本外合格，可以挑出来用 freqtrade 完整回测，再上模拟盘。`;
+  ? `最后一代 ${D.final_population.length} 个个体在样本外全部不合格，暂时不要拿去交易。`
+  : `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}。最后一代 ${finalPass} / ${D.final_population.length} 个样本外合格，但都是训练分很低的新个体，更像运气。过拟合比第 1 轮轻了很多，可还没找到在新行情里稳定赚钱的规律，暂时不要拿去交易。`;
 
 // 图例
 for (const id of ['sp-legend', 'sp-legend2']) {
@@ -314,7 +330,17 @@ function renderDetail() {
     row('交易次数', { textContent: String(tr.trades) }, { textContent: String(oo.trades) }),
     row('胜率', { textContent: pct(tr.win, false) }, { textContent: pct(oo.win, false) }),
     row('盈亏比', { textContent: tr.pf.toFixed(2) }, { textContent: oo.pf.toFixed(2) }),
-    row('适应度', { textContent: tr.fit.toFixed(2) }, { textContent: oo.fit.toFixed(2) })]);
+    row('得分', { textContent: tr.fit.toFixed(2) + '（稳健）' }, { textContent: oo.fit.toFixed(2) + '（单段）' })]);
+  if (a.folds) {
+    const fb = el('div', { className: 'folds' });
+    const mx = Math.max(5, ...a.folds.map((v) => Math.abs(v)));
+    a.folds.forEach((v, k) => {
+      const [f0] = D.meta.folds[k];
+      fb.append(el('div', { className: 'fold' }, [el('div', { className: 'fbar' }, [el('span', { className: v >= 0 ? 'up' : 'dn', style: `height:${Math.max(2, Math.abs(v) / mx * 34)}px` })]),
+        el('div', { className: 'fv ' + cls(v), textContent: pct(v) }), el('div', { className: 'fk', textContent: f0.slice(2, 7) })]));
+    });
+    box.append(el('div', { className: 'sub', textContent: `训练期 ${a.folds.length} 段分别回测的收益（加压手续费）：${a.folds.filter((v) => v > 0).length} 段赚钱` }), fb);
+  }
   box.append(el('div', { className: 'scroll' }, [el('table', { className: 'mt' }, [el('thead', {}, [el('tr', {}, [el('th', { textContent: '' }), el('th', { textContent: `训练期` }), el('th', { textContent: `样本外` })])]), tb])]));
   const curve = D.curves[a.id];
   if (curve) {
@@ -396,7 +422,7 @@ function drawScatter() {
   const x = d3.scaleLinear().domain(d3.extent(pts, (a) => M(a.tr).fit)).nice().range([m.l, W - m.r]);
   svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat((d) => d + '%').tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
   svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.floor(W / 70)).tickSize(0).tickPadding(8)).call(axisStyle);
-  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text('训练期适应度 →');
+  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text('训练期稳健得分 →');
   svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--muted'));
   svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx', (a) => x(M(a.tr).fit)).attr('cy', (a) => y(M(a.oo).ret)).attr('r', (a) => (FINAL.has(a.id) ? 4 : 2.4))
     .attr('fill', (a) => spColor(a.sp)).attr('fill-opacity', (a) => (FINAL.has(a.id) ? 0.95 : 0.35)).attr('stroke', (a) => (FINAL.has(a.id) ? css('--ring') : 'none')).attr('stroke-width', 1);
@@ -424,9 +450,35 @@ document.getElementById('champ-body').append(...champIds.map((id) => {
 // 导航高亮
 const links = [...document.querySelectorAll('nav a')];
 const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((l) => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
-['lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
+['rounds', 'lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
 
-function drawAll() { drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
+function drawRounds() {
+  const tb = document.getElementById('round-body'); tb.replaceChildren(...D.rounds.map((r) => el('tr', { style: 'cursor:default' }, [
+    el('td', { textContent: r.name }), el('td', { textContent: r.how, style: 'white-space:normal;min-width:150px;color:var(--muted);text-align:left' }),
+    el('td', { textContent: `${r.final_pass} / ${r.final_n}` }), el('td', { textContent: pct(r.final_oos), className: cls(r.final_oos) }),
+    el('td', { textContent: pct(r.top_oos), className: cls(r.top_oos) }), el('td', { textContent: `${pct(r.champ_train)} → ${pct(r.champ_oos)}` })])));
+  const box = document.getElementById('c-rounds'); box.replaceChildren();
+  const W = Math.max(280, box.clientWidth), H = 190;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '三轮的样本外平均收益对比');
+  const keys = [['final_oos', '最后一代样本外平均'], ['top_oos', '训练前 100 名样本外平均']];
+  const y = d3.scaleLinear().domain([Math.min(-5, d3.min(D.rounds, (r) => Math.min(r.final_oos, r.top_oos)) * 1.15), 0]).nice();
+  const m = { t: 22, r: 8, b: 24, l: textW(svg, y.ticks(4).map((t) => t + '%')) + 8 };
+  y.range([H - m.b, m.t]);
+  const x0 = d3.scaleBand().domain(D.rounds.map((r) => r.name)).range([m.l, W - m.r]).padding(0.25);
+  const x1 = d3.scaleBand().domain(keys.map((k) => k[0])).range([0, x0.bandwidth()]).padding(0.12);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat((d) => d + '%').tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${m.t})`).call(d3.axisTop(x0).tickSize(0).tickPadding(8)).call(axisStyle);
+  const colors = [css('--bad'), css('--muted')];
+  const g = svg.append('g').selectAll('g').data(D.rounds).join('g').attr('transform', (r) => `translate(${x0(r.name)},0)`);
+  keys.forEach(([k], i) => {
+    g.append('rect').attr('x', x1(k)).attr('width', x1.bandwidth()).attr('y', y(0)).attr('height', (r) => y(r[k]) - y(0)).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85).attr('rx', 2);
+    g.append('text').attr('x', x1(k) + x1.bandwidth() / 2).attr('y', (r) => y(r[k]) + 13).attr('text-anchor', 'middle').attr('fill', css('--fg')).text((r) => r[k].toFixed(1));
+  });
+  const lg = svg.append('g').attr('transform', `translate(${m.l},${H - 6})`);
+  keys.forEach(([k, label], i) => { const xx = i * Math.min(170, (W - m.l) / 2); lg.append('rect').attr('x', xx).attr('y', -9).attr('width', 10).attr('height', 10).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85); lg.append('text').attr('x', xx + 14).text(label); });
+}
+
+function drawAll() { drawRounds(); drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
 drawAll();
 let rt, lastW = innerWidth;
 addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(drawAll, 150); });

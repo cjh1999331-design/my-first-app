@@ -131,7 +131,7 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
 
 # ------------------------------------------------------------------ 回测
 def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64,
-             want_trades: bool = False) -> dict:
+             want_trades: bool = False, fee: float = FEE, min_trades: int = 30) -> dict:
     eq0 = START_EQUITY / len(data)
     exits_t, exits_pnl, trades = [], [], []
     for d in data:
@@ -189,7 +189,7 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
                 j += 1
             hours = j - e_i + 1
             notional = qty * entry
-            pnl = side * qty * (exit_p - entry) - notional * FEE - qty * exit_p * FEE - notional * FUNDING_PER_H * hours
+            pnl = side * qty * (exit_p - entry) - notional * fee - qty * exit_p * fee - notional * FUNDING_PER_H * hours
             pnl = max(pnl, -E)  # 逐仓：最多亏光这一份
             E += pnl
             exits_t.append(d.t[j])
@@ -199,10 +199,10 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
                                round(float(exit_p), 6), round(float(pnl), 2), round(notional / max(E - pnl, 1e-9), 2)))
             i = j + 1
             k += 1
-    return _metrics(exits_t, exits_pnl, t0, t1, trades if want_trades else None)
+    return _metrics(exits_t, exits_pnl, t0, t1, trades if want_trades else None, min_trades)
 
 
-def _metrics(exits_t, exits_pnl, t0, t1, trades) -> dict:
+def _metrics(exits_t, exits_pnl, t0, t1, trades, min_trades: int = 30) -> dict:
     n = len(exits_pnl)
     if n == 0:
         return {"trades": 0, "ret": 0.0, "dd": 0.0, "win": 0.0, "pf": 0.0, "fit": -1.0, "_t": [], "_eq": []}
@@ -221,8 +221,8 @@ def _metrics(exits_t, exits_pnl, t0, t1, trades) -> dict:
     else:
         ann = -1.0
     fit = ann / max(dd, 0.05)
-    if n < 30:
-        fit = min(fit, 0) - (30 - n) / 30
+    if n < min_trades:
+        fit = min(fit, 0) - (min_trades - n) / max(min_trades, 1)
     m = {"trades": n, "ret": round(ret * 100, 2), "dd": round(dd * 100, 2),
          "win": round(float((pnl > 0).mean() * 100), 1),
          "pf": round(float(wins / loss), 2) if loss > 0 else 99.0,
