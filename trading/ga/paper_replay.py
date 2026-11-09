@@ -46,11 +46,11 @@ def main():
         positions.append({"pair": p["name"], "side": int(p["side"]), "sid": ids[p["si"]], "since": tstr(p["t_entry"]),
                           "entry": sig(p["entry"]), "last": sig(lc), "lev": rules.lev, "notional": round(p["qty"] * lc, 2),
                           "margin": round(p["margin"], 2), "float": round(p["side"] * p["qty"] * (lc - p["entry"]), 2),
-                          "stop": sig(p["stop"]), "tp": sig(p["tp"])})
+                          "stop": sig(p["stop"]), "tp": None if p["trail"] else sig(p["tp"])})
     positions.sort(key=lambda p: -p["notional"])
     closed = [{"pair": t["name"], "side": int(t["side"]), "sid": ids[t["si"]], "te": tstr(t["t_entry"]), "tx": tstr(t["t_exit"]),
                "entry": sig(t["entry"]), "exit": sig(t["exit"]), "lev": rules.lev, "notional": round(t["qty"] * t["entry"], 2),
-               "pnl": round(float(t["pnl"]), 2)} for t in closed_raw]
+               "pnl": round(float(t["pnl"]), 2), "reason": t.get("reason", "")} for t in closed_raw]
     closed.sort(key=lambda t: t["tx"], reverse=True)
     strategies = []
     for k, sid in enumerate(ids):
@@ -64,7 +64,8 @@ def main():
     prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
     ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
     stats = {"n": len(closed), "wins": int(sum(t["pnl"] > 0 for t in closed)), "realized": round(sum(t["pnl"] for t in closed), 2)}
-    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.max_pos, "max_notional": rules.max_notional}
+    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.max_pos, "max_notional": rules.max_notional,
+               "daily_stop": rules.daily_stop, "stops": [str(x)[:16] for x in run_portfolio.stops]}
     print(f"账户: {START_EQUITY} -> {eq_total[-1]:.2f}, 持仓 {len(positions)}, 平仓 {len(closed)}")
     for st in strategies:
         print("  ", st["id"], st["n_closed"], st["n_open"], st["pnl"])

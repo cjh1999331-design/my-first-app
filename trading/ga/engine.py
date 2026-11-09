@@ -6,7 +6,8 @@
   指标周期、最长持仓都按该周期的 K 线根数计算
 - 每个币对独立运行、各分 1/N 资金，结果合并
 - 信号在 K 线收盘时判断，下一根开盘价入场
-- 止损 = 入场价 ∓ stop_atr × ATR；止盈 = 止损距离 × tp_r；超过 max_hold 小时按收盘价离场
+- 止损 = 入场价 ∓ stop_atr × ATR；止盈 = 止损距离 × tp_r；超过 max_hold 根 K 线按收盘价离场
+- 基因 exit="trail" 时不设止盈，止损随最高价（做空为最低价）上移，保持 stop_atr × ATR 的距离
 - 同一根 K 线同时碰到止损和止盈时按止损算（保守）
 - 仓位：每笔风险 = 账户 × risk；名义仓位 / 账户 = 杠杆，最高 10 倍
 - 成本：手续费单边 0.05%，资金费按每 8 小时 0.01% 计（多空都按付出算，保守）
@@ -214,7 +215,8 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
             if qty * entry > E * MAX_LEV:
                 qty = E * MAX_LEV / entry
             stop = entry - side * dist
-            tp = entry + side * dist * g["tp_r"]
+            trail = g.get("exit", "tp") == "trail"          # trail：不设止盈，止损跟随最高/最低价移动
+            tp = np.inf * side if trail else entry + side * dist * g["tp_r"]
             j = e_i
             last = min(i1 - 1, e_i + int(g["max_hold"]))
             exit_p = None
@@ -236,6 +238,8 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
                 if j == last:
                     exit_p = c[j]
                     break
+                if trail:                                     # 收盘后再上移止损，不用本根之后的信息
+                    stop = max(stop, h[j] - dist) if side == 1 else min(stop, l[j] + dist)
                 j += 1
             hours = (j - e_i + 1) * d.bar_h
             notional = qty * entry
