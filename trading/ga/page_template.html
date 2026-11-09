@@ -245,11 +245,12 @@
       <summary>回测方法和局限</summary>
       <ul>
         <li>币种：OKX USDT 永续 24 小时成交额前 100 的加密货币（去掉稳定币、股票和大宗商品合约）。用今天的热门币回看过去会偏向“后来火了”的币，结果可能偏乐观。</li>
-        <li>进化时每个策略的资金按当时已上线的币平分、每个币独立回测；模拟账户里 4 个物种冠军（只按训练期得分选出）共用一个资金池，每笔按账户权益的 0.2% 风险定仓位，5x 逐仓，最多 25 个持仓；信号在 1 小时 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
+        <li>进化打分时，每个策略的资金按当时已上线的币平分、每个币独立回测。模拟账户里 4 个物种冠军（只按训练期得分选出）共用一个资金池：10 倍逐仓，每笔风险为账户权益的 1%，每个策略最多 5 个持仓，同一个币不重复开仓；当天亏损达到 10% 全部平仓、当天停手；第 5 轮的策略不设止盈，用移动止损。</li>
         <li>每笔风险 = 账户 × 风险基因；单币杠杆最高 10 倍。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
         <li>稳健得分：训练期（2021-02 ~ 2025-06）切成 6 段分别回测（手续费按 0.08% 加压），平均分 − 0.5×波动，赚钱段数少于 5 段扣分；再和参数扰动 ±10% 的“邻居”取折中。</li>
         <li>简化回测：没有滑点和盘口深度；逐仓亏损上限是保证金，没有模拟强平价格。</li>
-        <li>共用账户时每笔风险定为 0.5% 的话，同样的策略会亏掉约 60%（加密货币同涨同跌，持仓风险会叠加）。0.2% 是看到这个结果后定的，所以账户回放的数字偏乐观。</li>
+        <li>账户结果对开仓顺序很敏感：同一时刻有多个信号时，先开哪个币不同，最终权益差别很大。页面上同时给出 20 种随机顺序的中位数和范围。</li>
+        <li>这套风控是你指定的，没有用样本外调参；但之前几轮的风险参数是看过样本外结果后改过的。</li>
         <li>样本外区间已经看过五次结果，再按它挑策略就会“偷看答案”。下一步应该用实时模拟盘检验。</li>
         <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
       </ul>
@@ -481,7 +482,7 @@ document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click'
 }));
 document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
 document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
-document.getElementById('sim-note').textContent = `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 1 小时 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。风控：每笔止损最多亏账户 ${(R.rules.risk * 100).toFixed(1)}%，${R.rules.lev}x 逐仓，最多同时 ${R.rules.max_pos} 个持仓，每个币一个持仓。这套风控是在看到 0.5% 风险会大亏之后定的，结果偏乐观。真正的实时模拟盘需要一台在线服务器。`;
+document.getElementById('sim-note').textContent = `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
 const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}${s.tf_name ? ' · ' + s.tf_name : ''}`]); };
 
 function bars(tf) {
@@ -508,7 +509,8 @@ function renderAccount() {
     return el('span', { className: 'ai' }, [stratTag(s.id), el('b', { textContent: `${sUsd(p)}`, className: cls(p) })]);
   }));
   const sh = R.shuffle && R.shuffle.finals.length ? R.shuffle : null;
-  document.getElementById('shuffle').textContent = sh ? `稳健性：把同一时刻的开仓顺序随机打乱 ${sh.finals.length} 次，最终权益中位数 ${usd(d3.median(sh.finals))} USDT，范围 ${usd(d3.min(sh.finals))} ~ ${usd(d3.max(sh.finals))}；最大回撤中位数 ${d3.median(sh.dds).toFixed(1)}%。上面的数字只是其中一种顺序。` : '';
+  const cmp = R.compare ? ` 对照：同样的策略用${R.compare.label.replace('旧规则：', '旧规则（')}）最终 ${usd(R.compare.final)} USDT，最大回撤 ${R.compare.dd}%。` : '';
+  document.getElementById('shuffle').textContent = (sh ? `稳健性：把同一时刻的开仓顺序随机打乱 ${sh.finals.length} 次，最终权益中位数 ${usd(d3.median(sh.finals))} USDT，范围 ${usd(d3.min(sh.finals))} ~ ${usd(d3.max(sh.finals))}；最大回撤中位数 ${d3.median(sh.dds).toFixed(1)}%。上面的数字只是其中一种顺序。` : '') + cmp;
   drawEK(); renderPositions(); renderClosed();
 }
 
@@ -598,7 +600,7 @@ function renderPositions() {
   document.getElementById('pos-sum').replaceChildren(it('仓位', `${usd(notional)} USDT`), it('保证金', `${usd(margin)} USDT`), it('浮动盈亏', `${sUsd(fl)} USDT`, cls(fl)));
   document.getElementById('pos-list').replaceChildren(...(P.length ? P.slice(0, acc.posN).map((p) => rowEl(p.pair, p.side, `${sUsd(p.float)}`, cls(p.float), `仓位 ${usd(p.notional)} USDT · ${p.lev.toFixed(1)}x`, [
     el('div', { className: 'who' }, ['开仓策略 ', stratTag(p.sid)]), el('p', { className: 'rule', textContent: STRAT.get(p.sid).desc.split(' · ').slice(1).join(' · ') }),
-    el('div', { className: 'kv' }, [kv('开仓价', px(p.entry)), kv('最新价', px(p.last)), kv('止损', px(p.stop)), kv('止盈', px(p.tp)), kv('保证金', `${usd(p.margin)} USDT`), kv('开仓时间', p.since.replace('T', ' ') + ' UTC')])]))
+    el('div', { className: 'kv' }, [kv('开仓价', px(p.entry)), kv('最新价', px(p.last)), kv(p.tp === null ? '移动止损' : '止损', px(p.stop)), kv('止盈', p.tp === null ? '不设（移动止损）' : px(p.tp)), kv('保证金', `${usd(p.margin)} USDT`), kv('开仓时间', p.since.replace('T', ' ') + ' UTC')])]))
     : [el('p', { className: 'sub', textContent: '当前没有持仓' })]));
   const more = document.getElementById('pos-more'); more.hidden = P.length <= acc.posN; more.textContent = `显示全部 ${P.length} 个持仓`;
 }
@@ -608,7 +610,7 @@ function renderClosed() {
   document.getElementById('cl-sum').replaceChildren(it('已平仓', `${st.n.toLocaleString()} 笔`), it('胜率', `${Math.round(st.wins / st.n * 100)}%`), it('已实现', `${sUsd(st.realized)} USDT`, cls(st.realized)));
   document.getElementById('cl-list').replaceChildren(...C.slice(0, acc.clN).map((t) => rowEl(t.pair, t.side, `${sUsd(t.pnl)}`, cls(t.pnl), `${t.tx.slice(5).replace('T', ' ')} 平仓 · 仓位 ${usd(t.notional)} USDT`, [
     el('div', { className: 'who' }, ['开仓策略 ', stratTag(t.sid)]), el('p', { className: 'rule', textContent: STRAT.get(t.sid).desc.split(' · ').slice(1).join(' · ') }),
-    el('div', { className: 'kv' }, [kv('开仓价', px(t.entry)), kv('平仓价', px(t.exit)), kv('仓位', `${usd(t.notional)} USDT · ${t.lev}x`), kv('持仓时长', hm(t.te, t.tx)), kv('开仓时间', t.te.replace('T', ' ') + ' UTC'), kv('平仓时间', t.tx.replace('T', ' ') + ' UTC')])])));
+    el('div', { className: 'kv' }, [kv('平仓原因', t.reason || '—'), kv('开仓价', px(t.entry)), kv('平仓价', px(t.exit)), kv('仓位', `${usd(t.notional)} USDT · ${t.lev}x`), kv('持仓时长', hm(t.te, t.tx)), kv('开仓时间', t.te.replace('T', ' ') + ' UTC'), kv('平仓时间', t.tx.replace('T', ' ') + ' UTC')])])));
   const more = document.getElementById('cl-more'); more.hidden = acc.clN >= C.length; more.textContent = `再显示 40 笔（页面保存了最近 ${C.length} 笔）`;
 }
 
@@ -655,7 +657,7 @@ function renderDetail() {
 }
 
 // ---------- 验证页
-document.getElementById('verdict').textContent = `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}），是四轮里第一次训练好、样本外也赚钱。但优势很薄（样本外盈亏比 ${M(champ.oo).pf.toFixed(2)}），回测是简化版，样本外也已经看过四次，先不要投入真钱，下一步用实时模拟盘检验。`;
+document.getElementById('verdict').textContent = `第 5 轮让周期参与进化后，4 小时策略胜出。冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}）。优势仍然很薄（样本外盈亏比 ${M(champ.oo).pf.toFixed(2)}）。模拟账户用 10 倍杠杆、每笔 1% 风险把它放大了：回放赚了 ${pct((R.ohlc[R.ohlc.length - 1][3] / R.start_equity - 1) * 100)}，但最大回撤超过 60%，换一种开仓顺序可能只剩 ${usd(d3.min(R.shuffle.finals))} USDT。先不要投入真钱，下一步用实时模拟盘检验。`;
 const okInds = ALL.filter((a) => M(a.tr).trades >= 30);
 const rank = (arr) => { const idx = arr.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]); const r = new Array(arr.length); idx.forEach(([, i], k) => { r[i] = k; }); return r; };
 const rx = rank(okInds.map((a) => M(a.tr).fit)), ry = rank(okInds.map((a) => M(a.oo).ret));

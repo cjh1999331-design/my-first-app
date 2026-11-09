@@ -70,6 +70,14 @@ def main():
     for st in strategies:
         print("  ", st["id"], st["n_closed"], st["n_open"], st["pnl"])
 
+    # 对照：同样的策略换成旧的保守规则（每笔 0.2%、5x、账户最多 25 个持仓、不停手）
+    old = PortfolioRules(start_equity=START_EQUITY, risk=0.002, lev=5.0, max_pos=25, per_strategy=999, daily_stop=0.0)
+    _, eq_old, _, _, _ = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, old)
+    pk = np.maximum.accumulate(np.concatenate([[START_EQUITY], eq_old]))[1:]
+    compare = {"label": "旧规则：每笔 0.2%、5x、最多 25 个持仓、不停手", "final": round(float(eq_old[-1]), 2),
+               "dd": round(float(np.max((pk - eq_old) / pk)) * 100, 1)}
+    print(f"旧规则对照: {compare}")
+
     # 稳健性：随机打乱同一时刻的开仓顺序，看最终权益和回撤的分布
     finals, dds = [], []
     for seed in range(args.shuffles):
@@ -84,7 +92,7 @@ def main():
     fmt = lambda x: pd.Timestamp(x).strftime("%Y-%m-%dT%H:%M")
     out = {"start": fmt(t0), "end": fmt(t_end), "bar_hours": 4, "start_equity": START_EQUITY, "strategies": strategies,
            "ohlc": np.round(ohlc, 2).tolist(), "positions": positions, "closed": closed[:300], "closed_stats": stats, "rules": rules_d,
-           "shuffle": {"finals": finals, "dds": dds}}
+           "shuffle": {"finals": finals, "dds": dds}, "compare": compare}
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
     print(f"{len(ohlc)} 根 4h 权益 K 线 ({out['start']} ~ {out['end']}) -> {args.out}")
 
