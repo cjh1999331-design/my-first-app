@@ -15,7 +15,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from engine import START_EQUITY, backtest, load_data
+from engine import START_EQUITY, load_data
+from portfolio import PortfolioRules, run_portfolio
 
 HERE = Path(__file__).parent
 HOUR = np.timedelta64(1, "h")
@@ -35,63 +36,44 @@ def main():
     hours = np.arange(t0, t_end, HOUR)
     nh = len(hours)
 
-    # 每个币每小时收盘价（上线前用首个价格填充，不会有仓位）
-    closes = {}
-    for d in data:
-        s = pd.Series(d.c, index=pd.to_datetime(d.t)).reindex(pd.to_datetime(hours))
-        closes[d.name] = s.ffill().bfill().to_numpy()
-
-    ids = list(dict.fromkeys([r["champion"], *r["species_champions"]]))
+    # 一个账户：4 个物种冠军共用同一个资金池（规则见 portfolio.py），训练期得分高的策略优先
+    ids = sorted(dict.fromkeys(r["species_champions"]), key=lambda x: -I[x]["train"]["fit"])
+    rules = PortfolioRules(start_equity=START_EQUITY)
+    hrs, eq_total, open_pos, closed_raw, last_close = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, rules)
+    tstr = lambda t: str(t)[:16]
+    sig = lambda v: float(f"{float(v):.6g}")
+    positions = []
+    for p in open_pos:
+        lc = last_close[p["ci"]] if np.isfinite(last_close[p["ci"]]) else p["entry"]
+        positions.append({"pair": data[p["ci"]].name, "side": int(p["side"]), "sid": ids[p["si"]], "since": tstr(p["t_entry"]),
+                          "entry": sig(p["entry"]), "last": sig(lc), "lev": rules.lev, "notional": round(p["qty"] * lc, 2),
+                          "margin": round(p["margin"], 2), "float": round(p["side"] * p["qty"] * (lc - p["entry"]), 2),
+                          "stop": sig(p["stop"]), "tp": sig(p["tp"])})
+    positions.sort(key=lambda p: -p["notional"])
+    closed = [{"pair": data[t["ci"]].name, "side": int(t["side"]), "sid": ids[t["si"]], "te": tstr(t["t_entry"]), "tx": tstr(t["t_exit"]),
+               "entry": sig(t["entry"]), "exit": sig(t["exit"]), "lev": rules.lev, "notional": round(t["qty"] * t["entry"], 2),
+               "pnl": round(float(t["pnl"]), 2)} for t in closed_raw]
+    closed.sort(key=lambda t: t["tx"], reverse=True)
     strategies = []
-    for sid in ids:
-        ind = I[sid]
-        m = backtest(ind["genes"], data, t0, t_end, want_trades=True)
-        realized = np.zeros(nh)
-        unreal = np.zeros(nh)
-        open_pos, closed = [], []
-        per = {}   # 每个币：已实现盈亏、交易数、盈利笔数、持仓
-        def coin(p):
-            return per.setdefault(p, {"realized": 0.0, "n": 0, "wins": 0, "pos": None})
-        for (pair, te, tx, side, entry, exit_p, pnl, lev, qty, stop, tp) in m["trade_list"]:
-            hs = int(np.searchsorted(hours, np.datetime64(te)))        # 入场所在小时
-            hx = int(np.searchsorted(hours, np.datetime64(tx)))        # 离场所在小时
-            still_open = np.datetime64(tx) + HOUR >= t_end              # 数据末尾被强制平仓 = 实际仍持仓
-            end = nh if still_open else hx
-            if hs < end:
-                unreal[hs:end] += side * qty * (closes[pair][hs:end] - entry)
-            cs = coin(pair)
-            if still_open:
-                last = closes[pair][-1]
-                fl = side * qty * (last - entry)
-                notional = qty * last
-                open_pos.append([pair, side, te[:16], entry, round(lev, 2), round(fl, 2),
-                                 round(side * (last / entry - 1) * lev * 100, 2)])
-                cs["pos"] = {"side": side, "notional": round(notional, 2), "margin": round(qty * entry / max(lev, 1e-9), 2),
-                             "entry": entry, "last": float(f"{last:.6g}"), "float": round(fl, 2), "lev": round(lev, 2), "since": te[:16]}
-            else:
-                realized[hx:] += pnl
-                closed.append([pair, side, tx[:16], round(pnl, 2)])
-                cs["realized"] += pnl
-                cs["n"] += 1
-                cs["wins"] += pnl > 0
-        eq = START_EQUITY + realized + unreal
-        # 合成 4 小时 OHLC：开盘 = 上一根收盘
-        e4 = eq.reshape(-1, 4)
-        prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
-        ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
-        open_pos.sort(key=lambda x: -abs(x[5]))
-        strategies.append({"id": sid, "species": ind["species"], "desc": ind["desc"],
-                           "ohlc": np.round(ohlc, 2).tolist(), "n_trades": len(m["trade_list"]),
-                           "open": open_pos, "recent": closed[-10:][::-1],
-                           "coins": sorted([{"pair": k, "realized": round(v["realized"], 2), "n": v["n"], "wins": v["wins"], "pos": v["pos"],
-                                             "total": round(v["realized"] + (v["pos"]["float"] if v["pos"] else 0), 2)}
-                                            for k, v in per.items()], key=lambda x: -x["total"])})
-        print(f"{sid}: {len(m['trade_list'])} 笔, 持仓 {len(open_pos)}, 最终权益 {eq[-1]:.1f}")
+    for k, sid in enumerate(ids):
+        mine = [t for t in closed if t["sid"] == sid]
+        op = [p for p in positions if p["sid"] == sid]
+        strategies.append({"id": sid, "species": I[sid]["species"], "desc": I[sid]["desc"], "n_closed": len(mine), "n_open": len(op),
+                           "pnl": round(sum(t["pnl"] for t in mine) + sum(p["float"] for p in op), 2)})
+    e4 = eq_total.reshape(-1, 4)
+    prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
+    ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
+    stats = {"n": len(closed), "wins": int(sum(t["pnl"] > 0 for t in closed)), "realized": round(sum(t["pnl"] for t in closed), 2)}
+    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.max_pos, "max_notional": rules.max_notional}
+    print(f"账户: {START_EQUITY} -> {eq_total[-1]:.2f}, 持仓 {len(positions)}, 平仓 {len(closed)}")
+    for st in strategies:
+        print("  ", st["id"], st["n_closed"], st["n_open"], st["pnl"])
 
     fmt = lambda x: pd.Timestamp(x).strftime("%Y-%m-%dT%H:%M")
-    out = {"start": fmt(t0), "end": fmt(t_end), "bar_hours": 4, "start_equity": START_EQUITY, "strategies": strategies}
+    out = {"start": fmt(t0), "end": fmt(t_end), "bar_hours": 4, "start_equity": START_EQUITY, "strategies": strategies,
+           "ohlc": np.round(ohlc, 2).tolist(), "positions": positions, "closed": closed[:300], "closed_stats": stats, "rules": rules_d}
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
-    print(f"{len(strategies[0]['ohlc'])} 根 4h 权益 K 线 ({out['start']} ~ {out['end']}) -> {args.out}")
+    print(f"{len(ohlc)} 根 4h 权益 K 线 ({out['start']} ~ {out['end']}) -> {args.out}")
 
 
 if __name__ == "__main__":

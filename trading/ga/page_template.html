@@ -63,6 +63,29 @@
   #ek { cursor: crosshair; touch-action: pan-y; }
   .summary { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
   .summary b { font-family: var(--mono); font-weight: 600; }
+  .hero-k { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .alloc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; align-items: center; }
+  .alloc .ai { display: inline-flex; gap: 6px; align-items: center; }
+  .alloc b { font-family: var(--mono); font-weight: 600; }
+  .stag { display: inline-flex; align-items: center; gap: 5px; color: var(--fg); font-weight: 500; }
+  .cnt { font-family: var(--mono); color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .rows { display: flex; flex-direction: column; }
+  .row { border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0; }
+  .row summary::-webkit-details-marker { display: none; }
+  .row .rc { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .row .pair { font-family: var(--mono); font-weight: 600; }
+  .row .rv { font-family: var(--mono); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .row .rs { grid-column: 1 / -1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row[open] summary { padding-bottom: 6px; }
+  .dt { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .who { display: flex; align-items: center; gap: 8px; color: var(--muted); flex-wrap: wrap; }
+  .rule { margin: 0; font-size: 12px; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
+  @media (max-width: 520px) { .kv { grid-template-columns: 1fr; } }
+  .kvr { display: flex; justify-content: space-between; gap: 8px; min-width: 0; color: var(--muted); }
+  .kvr b { font-family: var(--mono); font-weight: 500; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .coins { display: flex; flex-direction: column; }
   .coin { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
   .coin:first-child { border-top: 0; }
@@ -149,18 +172,16 @@
   <!-- 账户 -->
   <section class="view" id="v-account">
     <div class="card">
-      <div class="hero">
-        <div>
-          <div class="k">模拟账户权益 <span class="tag">回放</span></div>
-          <div class="equity"><span id="eq">—</span><small>USDT</small></div>
-        </div>
-        <select id="strat" aria-label="选择策略"></select>
+      <div>
+        <div class="hero-k">模拟账户权益 <span class="tag">回放</span></div>
+        <div class="equity"><span id="eq">—</span><small>USDT</small></div>
       </div>
-      <div class="kpis">
+      <div class="kpis" aria-label="单位 USDT">
         <div class="kpi"><div class="k">近 24 小时</div><div class="v" id="k24">—</div></div>
         <div class="kpi"><div class="k" id="ktot-k">累计收益</div><div class="v" id="ktot">—</div></div>
         <div class="kpi"><div class="k">最大回撤</div><div class="v" id="kdd">—</div></div>
       </div>
+      <div class="alloc" id="alloc"></div>
     </div>
 
     <div class="card">
@@ -170,22 +191,27 @@
       </div>
       <div class="readout" id="readout"></div>
       <div class="chartbox"><canvas id="ek" role="img" aria-label="账户权益 K 线（USDT），左右拖动查看更早的数据"></canvas></div>
-      <p class="foot">每根 K 线是账户权益（已实现 + 未平仓浮动盈亏）在这段时间的开、高、低、收。左右拖动看更早的数据，点按看具体数值。</p>
+      <p class="foot">账户权益（已实现 + 未平仓浮动盈亏）的开、高、低、收。左右拖动看更早，点按看数值。</p>
     </div>
 
     <div class="card">
-      <div class="card-h">
-        <h2>各币持仓与收益（USDT）</h2>
-        <div class="seg" role="group" aria-label="筛选"><button type="button" data-cf="open" class="on">持仓中</button><button type="button" data-cf="all">全部</button></div>
-      </div>
-      <div class="summary" id="csum"></div>
-      <div class="coins" id="coins"></div>
-      <button type="button" class="more" id="cmore" hidden></button>
+      <div class="card-h"><h2>持仓 <span class="cnt" id="pos-n"></span></h2></div>
+      <div class="summary" id="pos-sum"></div>
+      <div class="rows" id="pos-list"></div>
+      <button type="button" class="more" id="pos-more" hidden></button>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>平仓记录</h2></div>
+      <div class="summary" id="cl-sum"></div>
+      <div class="rows" id="cl-list"></div>
+      <button type="button" class="more" id="cl-more" hidden></button>
     </div>
     <p class="foot" id="sim-note"></p>
   </section>
 
   <!-- 进化 -->
+
   <section class="view" id="v-evolution" hidden>
     <div class="card">
       <p class="sub" id="evo-intro"></p>
@@ -218,10 +244,11 @@
       <summary>回测方法和局限</summary>
       <ul>
         <li>币种：OKX USDT 永续 24 小时成交额前 100 的加密货币（去掉稳定币、股票和大宗商品合约）。用今天的热门币回看过去会偏向“后来火了”的币，结果可能偏乐观。</li>
-        <li>资金按当时已上线的币平分，每个币独立运行；信号在 1 小时 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
+        <li>进化时每个策略的资金按当时已上线的币平分、每个币独立回测；模拟账户里 4 个物种冠军（只按训练期得分选出）共用一个资金池，每笔按账户权益的 0.2% 风险定仓位，5x 逐仓，最多 25 个持仓；信号在 1 小时 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
         <li>每笔风险 = 账户 × 风险基因；单币杠杆最高 10 倍。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
         <li>稳健得分：训练期（2021-02 ~ 2025-06）切成 6 段分别回测（手续费按 0.08% 加压），平均分 − 0.5×波动，赚钱段数少于 5 段扣分；再和参数扰动 ±10% 的“邻居”取折中。</li>
-        <li>简化回测：没有滑点、爆仓和最小下单量。1000 USDT 分到约 65 个币后，单个持仓只有几 USDT，实盘会低于 OKX 最小下单量。</li>
+        <li>简化回测：没有滑点和盘口深度；逐仓亏损上限是保证金，没有模拟强平价格。</li>
+        <li>共用账户时每笔风险定为 0.5% 的话，同样的策略会亏掉约 60%（加密货币同涨同跌，持仓风险会叠加）。0.2% 是看到这个结果后定的，所以账户回放的数字偏乐观。</li>
         <li>样本外区间已经看过四次结果，再按它挑策略就会“偷看答案”。下一步应该用实时模拟盘检验。</li>
         <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
       </ul>
@@ -441,27 +468,23 @@ function drawScatter() {
 }
 
 
-// ---------- 账户
+// ---------- 账户（一个账户，4 个策略共同管理）
 const R = D.replay;
 const BAR = R.bar_hours * 3600e3;
 const T0 = Date.parse(R.start + ':00Z');
-const acc = { si: 0, tf: 6, off: 0, hover: null, cf: 'open', showAll: false };
-const sel = document.getElementById('strat');
-R.strategies.forEach((s, i) => sel.append(new Option(`${s.id} · ${SPN[s.species]}${s.id === D.champion ? '（冠军）' : ''}`, i)));
-sel.addEventListener('change', () => { acc.si = +sel.value; acc.off = 0; acc.hover = null; acc.showAll = false; renderAccount(); });
+const STRAT = new Map(R.strategies.map((s) => [s.id, s]));
+const acc = { tf: 6, off: 0, hover: null, posN: 15, clN: 20 };
 document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click', () => {
   acc.tf = +b.dataset.tf; acc.off = 0; acc.hover = null;
   document.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x === b)); drawEK();
 }));
-document.querySelectorAll('[data-cf]').forEach((b) => b.addEventListener('click', () => {
-  acc.cf = b.dataset.cf; acc.showAll = false;
-  document.querySelectorAll('[data-cf]').forEach((x) => x.classList.toggle('on', x === b)); renderCoins();
-}));
-document.getElementById('cmore').addEventListener('click', () => { acc.showAll = true; renderCoins(); });
-document.getElementById('sim-note').textContent = `回放：假设策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，用 OKX 永续真实 1 小时 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。真正的实时模拟盘需要一台在线服务器。`;
+document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
+document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
+document.getElementById('sim-note').textContent = `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 1 小时 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。风控：每笔止损最多亏账户 ${(R.rules.risk * 100).toFixed(1)}%，${R.rules.lev}x 逐仓，最多同时 ${R.rules.max_pos} 个持仓，每个币一个持仓。这套风控是在看到 0.5% 风险会大亏之后定的，结果偏乐观。真正的实时模拟盘需要一台在线服务器。`;
+const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}`]); };
 
 function bars(tf) {
-  const src = R.strategies[acc.si].ohlc; const out = [];
+  const src = R.ohlc; const out = [];
   for (let i = 0; i < src.length; i += tf) {
     const g = src.slice(i, i + tf);
     out.push({ t: T0 + i * BAR, o: g[0][0], h: d3.max(g, (x) => x[1]), l: d3.min(g, (x) => x[2]), c: g[g.length - 1][3], part: g.length < tf });
@@ -469,17 +492,21 @@ function bars(tf) {
   return out;
 }
 function renderAccount() {
-  const s = R.strategies[acc.si]; const o = s.ohlc; const last = o[o.length - 1][3];
+  const o = R.ohlc; const last = o[o.length - 1][3];
   const d24 = last - o[Math.max(0, o.length - 7)][3];
   const tot = last - R.start_equity;
   let peak = R.start_equity, dd = 0; o.forEach((b) => { peak = Math.max(peak, b[1]); dd = Math.max(dd, (peak - b[2]) / peak); });
   document.getElementById('eq').textContent = usd(last);
   const set = (id, txt, c) => { const e = document.getElementById(id); e.textContent = txt; e.className = 'v ' + (c || ''); };
-  set('k24', `${sUsd(d24)} USDT`, cls(d24));
-  set('ktot', `${sUsd(tot)} USDT`, cls(tot));
+  set('k24', sUsd(d24), cls(d24));
+  set('ktot', sUsd(tot), cls(tot));
   document.getElementById('ktot-k').textContent = `累计收益 ${pct(tot / R.start_equity * 100)}`;
   set('kdd', `−${(dd * 100).toFixed(1)}%`, 'bad');
-  drawEK(); renderCoins();
+  document.getElementById('alloc').replaceChildren(el('span', { className: 'k', textContent: '各策略盈亏' }), ...R.strategies.map((s) => {
+    const p = s.pnl;
+    return el('span', { className: 'ai' }, [stratTag(s.id), el('b', { textContent: `${sUsd(p)}`, className: cls(p) })]);
+  }));
+  drawEK(); renderPositions(); renderClosed();
 }
 
 let EK = null;
@@ -551,28 +578,35 @@ function readout(B, i) {
   ek.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { acc.hover = null; drawEK(); } });
 })();
 
-function renderCoins() {
-  const s = R.strategies[acc.si];
-  const openCoins = s.coins.filter((c) => c.pos);
-  const fl = d3.sum(openCoins, (c) => c.pos.float); const rz = d3.sum(s.coins, (c) => c.realized);
-  const notional = d3.sum(openCoins, (c) => c.pos.notional);
-  const sum = document.getElementById('csum');
+function kv(k, v, c) { return el('div', { className: 'kvr' }, [el('span', { textContent: k }), el('b', { textContent: v, className: c || '' })]); }
+const px = (v) => d3.format('.6~g')(v);
+const hm = (a, b) => { const h = (Date.parse(b + ':00Z') - Date.parse(a + ':00Z')) / 3600e3; return h >= 24 ? `${(h / 24).toFixed(1)} 天` : `${Math.max(1, Math.round(h))} 小时`; };
+function rowEl(pair, side, right, rightCls, sub, detail) {
+  return el('details', { className: 'row' }, [
+    el('summary', {}, [el('span', { className: 'rc' }, [el('span', { className: 'pair', textContent: pair }), el('span', { className: 'pill ' + (side > 0 ? 'long' : 'short'), textContent: side > 0 ? '多' : '空' })]),
+      el('span', { className: 'rv ' + rightCls, textContent: right }), el('span', { className: 'rs', textContent: sub })]),
+    el('div', { className: 'dt' }, detail)]);
+}
+function renderPositions() {
+  const P = R.positions;
+  const fl = d3.sum(P, (p) => p.float), notional = d3.sum(P, (p) => p.notional), margin = d3.sum(P, (p) => p.margin);
+  document.getElementById('pos-n').textContent = P.length;
   const it = (k, v, c) => el('span', {}, [k + ' ', el('b', { textContent: v, className: c || '' })]);
-  sum.replaceChildren(it('持仓', `${openCoins.length} 个币`), it('仓位合计', `${usd(notional)} USDT`), it('浮动', `${sUsd(fl)} USDT`, cls(fl)), it('已实现', `${sUsd(rz)} USDT`, cls(rz)), it('交易过', `${s.coins.length} 个币`));
-  let list = acc.cf === 'open' ? openCoins.slice().sort((a, b) => b.pos.notional - a.pos.notional) : s.coins;
-  const limit = acc.showAll ? list.length : 12;
-  const box = document.getElementById('coins');
-  box.replaceChildren(...(list.length ? list.slice(0, limit).map((c) => {
-    const p = c.pos;
-    const pill = p ? el('span', { className: 'pill ' + (p.side > 0 ? 'long' : 'short'), textContent: p.side > 0 ? '多' : '空' }) : el('span', { className: 'pill flat', textContent: '空仓' });
-    const meta = [];
-    if (p) meta.push(el('span', {}, ['仓位 ', el('b', { textContent: `${usd(p.notional)} USDT` })]), el('span', {}, ['浮动 ', el('b', { textContent: `${sUsd(p.float)} USDT`, className: cls(p.float) })]), el('span', { textContent: `${p.lev.toFixed(1)}x · 开仓 ${d3.format('.6~g')(p.entry)}` }));
-    meta.push(el('span', {}, ['已实现 ', el('b', { textContent: `${sUsd(c.realized)} USDT`, className: cls(c.realized) })]), el('span', { textContent: `${c.n} 笔 · 胜率 ${c.n ? Math.round(c.wins / c.n * 100) : 0}%` }));
-    return el('div', { className: 'coin' }, [el('div', { className: 'name' }, [el('span', { className: 'pair', textContent: c.pair }), pill]),
-      el('div', { className: 'total ' + cls(c.total), textContent: `${sUsd(c.total)}` }), el('div', { className: 'meta' }, meta)]);
-  }) : [el('p', { className: 'sub', textContent: '当前没有持仓' })]));
-  const more = document.getElementById('cmore');
-  more.hidden = list.length <= limit; more.textContent = `显示全部 ${list.length} 个币`;
+  document.getElementById('pos-sum').replaceChildren(it('仓位', `${usd(notional)} USDT`), it('保证金', `${usd(margin)} USDT`), it('浮动盈亏', `${sUsd(fl)} USDT`, cls(fl)));
+  document.getElementById('pos-list').replaceChildren(...(P.length ? P.slice(0, acc.posN).map((p) => rowEl(p.pair, p.side, `${sUsd(p.float)}`, cls(p.float), `仓位 ${usd(p.notional)} USDT · ${p.lev.toFixed(1)}x`, [
+    el('div', { className: 'who' }, ['开仓策略 ', stratTag(p.sid)]), el('p', { className: 'rule', textContent: STRAT.get(p.sid).desc.split(' · ').slice(1).join(' · ') }),
+    el('div', { className: 'kv' }, [kv('开仓价', px(p.entry)), kv('最新价', px(p.last)), kv('止损', px(p.stop)), kv('止盈', px(p.tp)), kv('保证金', `${usd(p.margin)} USDT`), kv('开仓时间', p.since.replace('T', ' ') + ' UTC')])]))
+    : [el('p', { className: 'sub', textContent: '当前没有持仓' })]));
+  const more = document.getElementById('pos-more'); more.hidden = P.length <= acc.posN; more.textContent = `显示全部 ${P.length} 个持仓`;
+}
+function renderClosed() {
+  const C = R.closed, st = R.closed_stats;
+  const it = (k, v, c) => el('span', {}, [k + ' ', el('b', { textContent: v, className: c || '' })]);
+  document.getElementById('cl-sum').replaceChildren(it('已平仓', `${st.n.toLocaleString()} 笔`), it('胜率', `${Math.round(st.wins / st.n * 100)}%`), it('已实现', `${sUsd(st.realized)} USDT`, cls(st.realized)));
+  document.getElementById('cl-list').replaceChildren(...C.slice(0, acc.clN).map((t) => rowEl(t.pair, t.side, `${sUsd(t.pnl)}`, cls(t.pnl), `${t.tx.slice(5).replace('T', ' ')} 平仓 · 仓位 ${usd(t.notional)} USDT`, [
+    el('div', { className: 'who' }, ['开仓策略 ', stratTag(t.sid)]), el('p', { className: 'rule', textContent: STRAT.get(t.sid).desc.split(' · ').slice(1).join(' · ') }),
+    el('div', { className: 'kv' }, [kv('开仓价', px(t.entry)), kv('平仓价', px(t.exit)), kv('仓位', `${usd(t.notional)} USDT · ${t.lev}x`), kv('持仓时长', hm(t.te, t.tx)), kv('开仓时间', t.te.replace('T', ' ') + ' UTC'), kv('平仓时间', t.tx.replace('T', ' ') + ' UTC')])])));
+  const more = document.getElementById('cl-more'); more.hidden = acc.clN >= C.length; more.textContent = `再显示 40 笔（页面保存了最近 ${C.length} 笔）`;
 }
 
 // ---------- 进化页
