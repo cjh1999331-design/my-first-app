@@ -7,3 +7,4 @@ user_data/config.private.json
 evolve/runs/
 __pycache__/
 .venv/
+ga/results.json

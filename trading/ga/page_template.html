@@ -1,0 +1,435 @@
+<title>策略进化实验室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* 布局：顶部状态栏 + 锚点导航；主区单栏卡片：谱系图 → 选中个体详情 → 进化曲线 → 训练/样本外散点 → 物种冠军 */
+  :root {
+    --bg: #f3f5f8; --panel: #ffffff; --plot: #f8fafc; --fg: #141b24; --muted: #5f6b7a; --line: #e1e6ec; --grid: #edf0f4;
+    --accent: #0f5fa8; --good: #12804a; --bad: #c33c2f; --ring: #141b24; --link: rgba(90,104,122,.22); --hl: #0f5fa8;
+    --sp-vol_breakout: #2f6fd0; --sp-ma_cross: #8a4fd8; --sp-rsi_revert: #e08a1e; --sp-channel: #1f9d63;
+    --tip: #ffffff; --shadow: 0 8px 28px rgba(20,30,50,.14);
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0d1117; --panel: #151b23; --plot: #10161d; --fg: #e7ecf2; --muted: #95a2b2; --line: #263140; --grid: #1c2531;
+    --accent: #5aa2ff; --good: #3fce8c; --bad: #ff6d60; --ring: #e7ecf2; --link: rgba(150,165,185,.18); --hl: #5aa2ff;
+    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
+    --tip: #1b232d; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --panel: #151b23; --plot: #10161d; --fg: #e7ecf2; --muted: #95a2b2; --line: #263140; --grid: #1c2531;
+    --accent: #5aa2ff; --good: #3fce8c; --bad: #ff6d60; --ring: #e7ecf2; --link: rgba(150,165,185,.18); --hl: #5aa2ff;
+    --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
+    --tip: #1b232d; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+  .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .top-in, .main { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .brand { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 12px 8px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; flex: none; }
+  .mark svg { width: 24px; height: 24px; }
+  .logo b { font-size: 1.05rem; display: block; line-height: 1.2; }
+  .logo span { font-size: 12px; color: var(--muted); }
+  .champ-head { text-align: right; min-width: 0; }
+  .champ-head .k { font-size: 12px; color: var(--muted); }
+  .champ-head .v { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .champ-head .s { font-size: 12px; font-variant-numeric: tabular-nums; }
+  nav { display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none; font-size: 14px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { color: var(--muted); text-decoration: none; padding-block: 8px 10px; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav a:hover, nav a.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .main { padding-block: 20px 56px; display: flex; flex-direction: column; gap: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; scroll-margin-top: 120px; }
+  h2 { font-size: 1.15rem; margin: 0; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (min-width: 720px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .f { font-size: 12px; color: var(--muted); }
+  .good { color: var(--good); } .bad { color: var(--bad); }
+  .plotbox { position: relative; background: var(--plot); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointer; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); list-style: none; margin: 0; padding: 0; }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+  .ringdot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ring); display: inline-block; box-sizing: border-box; }
+  .detail-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .detail-head .name { font-size: 1.25rem; font-weight: 700; }
+  .badge { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .badge.champ { color: var(--accent); border-color: var(--accent); }
+  .badge.pass { color: var(--good); border-color: var(--good); }
+  .badge.fail { color: var(--bad); border-color: var(--bad); }
+  .genes { font-size: 15px; margin: 0; }
+  .origin { font-size: 13px; color: var(--muted); margin: 0; }
+  .origin button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .mt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .mt th, .mt td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .mt th:first-child, .mt td:first-child { text-align: left; color: var(--muted); font-weight: 400; }
+  .mt thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { font-size: 11px; fill: var(--muted); font-family: var(--sans); }
+  .tip { position: absolute; pointer-events: none; background: var(--tip); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; padding: 8px 10px; font-size: 12px; z-index: 3; max-width: 260px; font-variant-numeric: tabular-nums; }
+  .tip .m { color: var(--muted); }
+  .trades { font-family: var(--mono); font-size: 12px; }
+  .trades td, .trades th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  .trades th { color: var(--muted); font-weight: 600; font-family: var(--sans); }
+  .trades td:first-child, .trades th:first-child { text-align: left; }
+  .champs { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .champs th, .champs td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  .champs th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .champs td:first-child, .champs th:first-child { text-align: left; }
+  .champs tr { cursor: pointer; }
+  .champs tr:hover td { background: var(--plot); }
+  .warn { border-left: 3px solid var(--bad); padding: 8px 12px; background: var(--plot); border-radius: 6px; font-size: 14px; margin: 0; }
+  details { font-size: 13px; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--fg); font-weight: 600; }
+  details ul { padding-left: 1.2em; max-width: 75ch; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="logo">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="18" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="17" r="2"/><path d="M6.5 16.5 10.5 12.5M13.5 9.5l4-3M13.5 12.5l4 3"/></svg></div>
+        <div><b>策略进化实验室</b><span id="meta-line"></span></div>
+      </div>
+      <div class="champ-head">
+        <div class="k">当前冠军 · 样本外收益</div>
+        <div class="v" id="h-oos"></div>
+        <div class="s" id="h-train"></div>
+      </div>
+    </div>
+    <nav aria-label="页面导航">
+      <a href="#lineage" class="on">基因池</a>
+      <a href="#detail">个体详情</a>
+      <a href="#curve">进化曲线</a>
+      <a href="#overfit">过拟合检验</a>
+      <a href="#champs">物种冠军</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+  <section class="card" id="summary">
+    <div class="stats" id="stats"></div>
+    <p class="warn" id="verdict"></p>
+  </section>
+
+  <section class="card" id="lineage">
+    <h2>基因池 · 策略谱系</h2>
+    <p class="sub">每个点是一个策略。颜色是物种，点越大训练期适应度越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
+    <ul class="legend" id="sp-legend"></ul>
+    <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期适应度越高"></canvas></div>
+  </section>
+
+  <section class="card" id="detail" aria-live="polite"></section>
+
+  <section class="card" id="curve">
+    <h2>每个物种的最高适应度</h2>
+    <p class="sub">每一代各物种排第一的训练期适应度（年化收益 ÷ 最大回撤）。阶梯上升说明找到了更好的基因。</p>
+    <ul class="legend" id="sp-legend2"></ul>
+    <div class="chart" id="c-curve"></div>
+  </section>
+
+  <section class="card" id="overfit">
+    <h2>过拟合检验：训练分高，样本外未必好</h2>
+    <p class="sub">全部个体，横轴是训练期适应度，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。实际右边的高分个体在样本外大多亏钱。</p>
+    <div class="chart" id="c-scatter"></div>
+  </section>
+
+  <section class="card" id="champs">
+    <h2>物种冠军</h2>
+    <p class="sub">最后一代每个物种训练期排名第一的个体，以及全部个体里样本外表现最好的一个。点一行查看详情。</p>
+    <div class="scroll"><table class="champs"><thead><tr><th>个体</th><th>物种</th><th>训练收益</th><th>训练回撤</th><th>适应度</th><th>样本外收益</th><th>样本外回撤</th></tr></thead><tbody id="champ-body"></tbody></table></div>
+    <details>
+      <summary>回测方法和局限</summary>
+      <ul>
+        <li>数据：OKX USDT 永续 1 小时 K 线，BTC ETH SOL BNB XRP，每个币对分 1/5 资金独立运行。</li>
+        <li>信号在 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
+        <li>每笔风险 = 账户 × 风险基因；名义仓位最高 10 倍杠杆。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
+        <li>适应度 = 年化收益 ÷ max(最大回撤, 5%)，训练期少于 30 笔会扣分。选择只看训练期。</li>
+        <li>“样本外合格”= 样本外收益 &gt; 0、回撤 &lt; 30%、至少 10 笔交易。</li>
+        <li>这是为进化提速写的简化回测，没有爆仓、滑点和盘口模型；候选策略上线前要用 freqtrade 完整回测。</li>
+        <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
+      </ul>
+    </details>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const D = __DATA__;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SP = Object.keys(D.meta.species);
+const SPN = D.meta.species;
+const spColor = (sp) => css('--sp-' + sp);
+const I = new Map(D.inds.map((r) => { const o = { id: r[0], sp: SP[r[1]], gen: r[2], origin: r[3], parents: r[4], desc: r[5], tr: r[6], oo: r[7], pass: !!r[8], until: r[9], champN: r[10] }; return [o.id, o]; }));
+const ALL = [...I.values()];
+const FINAL = new Set(D.final_population);
+const SC = new Set(D.species_champions);
+const GENS = D.meta.generations;
+const pct = (v, signed = true) => (v === null || v === undefined ? '—' : (signed && v > 0 ? '+' : '') + v.toFixed(1) + '%');
+const cls = (v) => (v > 0 ? 'good' : v < 0 ? 'bad' : '');
+const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+// 指标数组顺序：[trades, ret, dd, win, pf, fit]
+const M = (a) => ({ trades: a[0], ret: a[1], dd: a[2], win: a[3], pf: a[4], fit: a[5] });
+
+// ---------- 头部和摘要
+const champ = I.get(D.champion);
+document.getElementById('meta-line').textContent = `${D.meta.exchange} · ${D.meta.timeframe} · ${GENS} 代`;
+const ho = document.getElementById('h-oos'); ho.textContent = pct(M(champ.oo).ret); ho.className = 'v ' + cls(M(champ.oo).ret);
+document.getElementById('h-train').textContent = `${champ.id} · 训练期 ${pct(M(champ.tr).ret)} · 适应度 ${M(champ.tr).fit.toFixed(2)}`;
+const passN = ALL.filter((x) => x.pass).length;
+const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
+const stat = (k, v, f, c = '') => el('div', { className: 'stat' }, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v ' + c, textContent: v }), el('div', { className: 'f', textContent: f })]);
+document.getElementById('stats').append(
+  stat('进化代数', String(GENS), `每物种 ${D.meta.per_species} 个 · ${SP.length} 个物种`),
+  stat('回测过的个体', ALL.length.toLocaleString(), `训练期 ${D.meta.train[0]} ~ ${D.meta.train[1]}`),
+  stat('冠军训练适应度', M(champ.tr).fit.toFixed(2), `收益 ${pct(M(champ.tr).ret)} · 回撤 ${pct(M(champ.tr).dd, false)}`),
+  stat('样本外合格', `${passN} / ${ALL.length}`, `最后一代：${finalPass} / ${D.final_population.length}`, finalPass ? 'good' : 'bad'));
+document.getElementById('verdict').textContent = finalPass === 0
+  ? `最后一代 ${D.final_population.length} 个个体在样本外（${D.meta.oos[0]} ~ ${D.meta.oos[1]}）全部不合格，冠军 ${champ.id} 训练期赚 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}。进化把训练数据“背”下来了，没有学到能延续的规律，暂时不要拿去交易。`
+  : `最后一代有 ${finalPass} 个个体样本外合格，可以挑出来用 freqtrade 完整回测，再上模拟盘。`;
+
+// 图例
+for (const id of ['sp-legend', 'sp-legend2']) {
+  const ul = document.getElementById(id);
+  SP.forEach((sp) => {
+    const n = ALL.filter((x) => x.sp === sp).length;
+    ul.append(el('li', {}, [el('span', { className: 'dot', style: `background:var(--sp-${sp})` }), `${SPN[sp]}${id === 'sp-legend' ? ` ${n}` : ''}`]));
+  });
+  if (id === 'sp-legend') ul.append(el('li', {}, [el('span', { className: 'ringdot' }), '当过物种冠军']));
+}
+
+// ---------- 谱系图（canvas）
+const cv = document.getElementById('cv');
+let layout = null;
+let selected = champ.id;
+function ancestors(id) {
+  const seen = new Set([id]); const q = [id];
+  while (q.length) { const x = I.get(q.shift()); (x?.parents || []).forEach((p) => { if (!seen.has(p)) { seen.add(p); q.push(p); } }); }
+  return seen;
+}
+function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+function drawLineage() {
+  const W = cv.parentElement.clientWidth;
+  const H = W < 560 ? 520 : 600;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const m = { l: 10, r: 14, t: 26, b: 26 };
+  const laneH = (H - m.t - m.b) / SP.length;
+  const x = (g) => m.l + 6 + (g / GENS) * (W - m.l - m.r - 12);
+  const fitMax = {}; SP.forEach((sp) => { fitMax[sp] = d3.max(ALL.filter((a) => a.sp === sp), (a) => M(a.tr).fit); });
+  const pos = new Map();
+  ALL.forEach((a) => {
+    const lane = SP.indexOf(a.sp);
+    const f = Math.max(-1, M(a.tr).fit);
+    const t = (f + 1) / (fitMax[a.sp] + 1);
+    const y = m.t + lane * laneH + 10 + (1 - t) * (laneH - 22);
+    const jx = ((hash(a.id) % 9) - 4) * (W / GENS) * 0.09;
+    const r = 1.8 + 6 * Math.max(0, Math.min(1, M(a.tr).fit / d3.max(SP, (s) => fitMax[s])));
+    pos.set(a.id, { x: x(a.gen) + jx, y, r, a });
+  });
+  layout = { pos, W, H };
+  // 背景：物种分区
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = `600 12px ${css('--sans')}`;
+  SP.forEach((sp, i) => {
+    const y0 = m.t + i * laneH;
+    if (i) { ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke(); }
+    ctx.fillStyle = spColor(sp); ctx.globalAlpha = 0.9; ctx.fillText(SPN[sp], m.l + 2, y0 + 14); ctx.globalAlpha = 1;
+  });
+  // 连线
+  const anc = ancestors(selected);
+  ctx.setLineDash([3, 3]); ctx.lineWidth = 0.7; ctx.strokeStyle = css('--link');
+  ctx.beginPath();
+  ALL.forEach((a) => { const p = pos.get(a.id); a.parents.forEach((pid) => { const q = pos.get(pid); if (q) { ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); } }); });
+  ctx.stroke(); ctx.setLineDash([]);
+  // 点：先画淘汰的，再画存活的
+  const order = [...ALL].sort((a, b) => (FINAL.has(a.id) - FINAL.has(b.id)) || (a.until - a.gen) - (b.until - b.gen));
+  order.forEach((a) => {
+    const p = pos.get(a.id);
+    const alive = FINAL.has(a.id);
+    const survived = a.until > a.gen;
+    ctx.globalAlpha = alive ? 1 : survived ? 0.55 : 0.22;
+    ctx.fillStyle = spColor(a.sp);
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    if (a.champN > 0) { ctx.globalAlpha = alive ? 1 : 0.6; ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 2, 0, Math.PI * 2); ctx.stroke(); }
+  });
+  ctx.globalAlpha = 1;
+  // 祖先链高亮
+  ctx.strokeStyle = css('--hl'); ctx.lineWidth = 2;
+  ctx.beginPath();
+  anc.forEach((id) => { const a = I.get(id); const p = pos.get(id); a.parents.forEach((pid) => { if (anc.has(pid)) { const q = pos.get(pid); ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); } }); });
+  ctx.stroke();
+  anc.forEach((id) => { const p = pos.get(id); ctx.fillStyle = spColor(p.a.sp); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(p.r, 3), 0, Math.PI * 2); ctx.fill(); });
+  const s = pos.get(selected);
+  ctx.strokeStyle = css('--hl'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 5, 0, Math.PI * 2); ctx.stroke();
+  // 代数刻度
+  ctx.fillStyle = css('--muted'); ctx.font = `11px ${css('--sans')}`;
+  const step = W < 560 ? 20 : 10;
+  for (let g = 0; g <= GENS - step * 0.75; g += step) { ctx.textAlign = g === 0 ? 'left' : 'center'; ctx.fillText(g === 0 ? '第 0 代' : String(g), x(g), H - 8); }
+  ctx.textAlign = 'right'; ctx.fillText(`第 ${GENS} 代`, W - m.r, H - 8); ctx.textAlign = 'left';
+}
+cv.addEventListener('click', (ev) => {
+  if (!layout) return;
+  const r = cv.getBoundingClientRect(); const px = ev.clientX - r.left, py = ev.clientY - r.top;
+  let best = null, bd = 16 * 16;
+  layout.pos.forEach((p, id) => { const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = id; } });
+  if (best) select(best, false);
+});
+
+// ---------- 详情
+function select(id, scroll = true) {
+  selected = id; drawLineage(); renderDetail();
+  if (scroll) document.getElementById('lineage').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+function renderDetail() {
+  const a = I.get(selected); const tr = M(a.tr), oo = M(a.oo);
+  const box = document.getElementById('detail'); box.replaceChildren();
+  const badges = [];
+  if (a.id === D.champion) badges.push(el('span', { className: 'badge champ', textContent: '当前总冠军' }));
+  else if (SC.has(a.id)) badges.push(el('span', { className: 'badge champ', textContent: '当前物种冠军' }));
+  if (a.champN > 0) badges.push(el('span', { className: 'badge', textContent: `当过 ${a.champN} 代物种冠军` }));
+  badges.push(el('span', { className: 'badge ' + (a.pass ? 'pass' : 'fail'), textContent: a.pass ? '样本外合格' : '样本外不合格' }));
+  if (FINAL.has(a.id)) badges.push(el('span', { className: 'badge', textContent: '存活到最后一代' }));
+  box.append(el('div', { className: 'detail-head' }, [el('span', { className: 'dot', style: `background:var(--sp-${a.sp});width:14px;height:14px` }), el('span', { className: 'name', textContent: `${SPN[a.sp]} · ${a.id}` }), ...badges]));
+  box.append(el('p', { className: 'genes', textContent: a.desc }));
+  const origin = el('p', { className: 'origin' });
+  origin.append(`第 ${a.gen} 代出生 · ${a.origin} · 父代 `);
+  if (a.parents.length) a.parents.forEach((p, i) => { if (i) origin.append('、'); origin.append(el('button', { type: 'button', textContent: p, onclick: () => select(p) })); });
+  else origin.append('无');
+  origin.append(` · ${FINAL.has(a.id) ? '存活至今' : `存活到第 ${a.until} 代`}`);
+  box.append(origin);
+  const row = (k, f1, f2) => el('tr', {}, [el('td', { textContent: k }), el('td', f1), el('td', f2)]);
+  const tb = el('tbody', {}, [
+    row('收益', { textContent: pct(tr.ret), className: cls(tr.ret) }, { textContent: pct(oo.ret), className: cls(oo.ret) }),
+    row('最大回撤', { textContent: pct(tr.dd, false) }, { textContent: pct(oo.dd, false) }),
+    row('交易次数', { textContent: String(tr.trades) }, { textContent: String(oo.trades) }),
+    row('胜率', { textContent: pct(tr.win, false) }, { textContent: pct(oo.win, false) }),
+    row('盈亏比', { textContent: tr.pf.toFixed(2) }, { textContent: oo.pf.toFixed(2) }),
+    row('适应度', { textContent: tr.fit.toFixed(2) }, { textContent: oo.fit.toFixed(2) })]);
+  box.append(el('div', { className: 'scroll' }, [el('table', { className: 'mt' }, [el('thead', {}, [el('tr', {}, [el('th', { textContent: '' }), el('th', { textContent: `训练期` }), el('th', { textContent: `样本外` })])]), tb])]));
+  const curve = D.curves[a.id];
+  if (curve) {
+    box.append(el('h2', { textContent: '资金曲线（训练期 + 样本外连续）', style: 'font-size:1rem;margin-top:6px' }));
+    const c = el('div', { className: 'chart' }); box.append(c); drawEquity(c, curve, a.sp);
+  } else {
+    box.append(el('p', { className: 'sub', textContent: '只为冠军和最后一代前 12 名保存了资金曲线和交易记录。' }));
+  }
+  const trades = D.trades[a.id];
+  if (trades && trades.length) {
+    box.append(el('h2', { textContent: '最近 8 笔交易', style: 'font-size:1rem;margin-top:6px' }));
+    const body = el('tbody', {}, trades.slice().reverse().map((t) => el('tr', {}, [
+      el('td', { textContent: t[0] }), el('td', { textContent: t[1].slice(5) }), el('td', { textContent: t[3] > 0 ? '多' : '空', className: t[3] > 0 ? 'good' : 'bad' }),
+      el('td', { textContent: t[7].toFixed(1) + 'x' }), el('td', { textContent: (t[6] > 0 ? '+' : '') + t[6].toFixed(1), className: cls(t[6]) })])));
+    box.append(el('div', { className: 'scroll' }, [el('table', { className: 'trades' }, [el('thead', {}, [el('tr', {}, ['币', '开仓 (UTC)', '方向', '杠杆', '盈亏 USDT'].map((h) => el('th', { textContent: h })))]), body])]));
+  }
+}
+
+// ---------- 小工具
+function textW(svg, labels) { let m = 0; labels.forEach((s) => { const n = svg.append('text').text(s); m = Math.max(m, n.node().getComputedTextLength() || s.length * 7); n.remove(); }); return m; }
+const axisStyle = (g) => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', css('--grid')); };
+function tipFor(box) {
+  const t = el('div', { className: 'tip', hidden: true }); box.appendChild(t);
+  t.show = (x, y, kids) => { t.replaceChildren(...kids); t.hidden = false; const w = box.clientWidth, tw = t.offsetWidth, th = t.offsetHeight; let l = x + 12; if (l + tw > w) l = Math.max(0, x - tw - 12); let tp = y - th - 10; if (tp < 0) tp = y + 16; t.style.left = l + 'px'; t.style.top = tp + 'px'; };
+  return t;
+}
+const parse = d3.utcParse('%Y-%m-%d');
+
+function drawEquity(box, curve, sp) {
+  const pts = curve.map(([d, v]) => ({ d: parse(d), v }));
+  const W = Math.max(280, box.clientWidth || box.parentElement.clientWidth - 36), H = 200;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '资金曲线');
+  const y = d3.scaleLinear().domain(d3.extent([...pts.map((p) => p.v), 1000])).nice();
+  const m = { t: 16, r: 8, b: 24, l: textW(svg, y.ticks(4).map((t) => d3.format(',')(t))) + 8 };
+  y.range([H - m.b, m.t]);
+  const x = d3.scaleUtc().domain(d3.extent(pts, (p) => p.d)).range([m.l, W - m.r]);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',')).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(W / 110))).tickFormat(d3.utcFormat('%y-%m')).tickSize(0).tickPadding(8)).call(axisStyle);
+  const sx = x(parse(D.meta.oos[0]));
+  svg.append('rect').attr('x', sx).attr('y', m.t).attr('width', W - m.r - sx).attr('height', H - m.t - m.b).attr('fill', css('--plot'));
+  svg.append('line').attr('x1', sx).attr('x2', sx).attr('y1', m.t - 6).attr('y2', H - m.b).attr('stroke', css('--muted')).attr('stroke-dasharray', '4 4');
+  svg.append('text').attr('x', sx - 5).attr('y', m.t - 4).attr('text-anchor', 'end').text('训练期');
+  svg.append('text').attr('x', sx + 5).attr('y', m.t - 4).text('样本外');
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(1000)).attr('y2', y(1000)).attr('stroke', css('--muted')).attr('stroke-dasharray', '2 3');
+  svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 2).attr('d', d3.line().x((p) => x(p.d)).y((p) => y(p.v)));
+  const tip = tipFor(box); const bis = d3.bisector((p) => p.d).center;
+  const dot = svg.append('circle').attr('r', 4).attr('fill', spColor(sp)).style('display', 'none');
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent').style('touch-action', 'pan-y')
+    .on('pointermove pointerdown', (ev) => { const [px] = d3.pointer(ev, svg.node()); const p = pts[bis(pts, x.invert(px))]; dot.style('display', null).attr('cx', x(p.d)).attr('cy', y(p.v)); const [bx, by] = d3.pointer(ev, box); tip.show(bx, by, [el('b', { textContent: d3.utcFormat('%Y-%m-%d')(p.d) }), el('div', { textContent: `${d3.format(',.0f')(p.v)} USDT` })]); })
+    .on('pointerleave', () => { dot.style('display', 'none'); tip.hidden = true; });
+}
+
+function drawCurve() {
+  const box = document.getElementById('c-curve'); box.replaceChildren();
+  const W = Math.max(280, box.clientWidth), H = W < 560 ? 230 : 270;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各物种每代最高适应度');
+  const y = d3.scaleLinear().domain([Math.min(0, d3.min(D.history, (h) => d3.min(SP, (s) => h[s]))), d3.max(D.history, (h) => d3.max(SP, (s) => h[s]))]).nice();
+  const m = { t: 10, r: 10, b: 24, l: textW(svg, y.ticks(5).map(String)) + 8 };
+  y.range([H - m.b, m.t]);
+  const x = d3.scaleLinear().domain([0, GENS]).range([m.l, W - m.r]);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.min(7, Math.floor(W / 60))).tickFormat((d) => `${d}`).tickSize(0).tickPadding(8)).call(axisStyle);
+  SP.forEach((sp) => svg.append('path').datum(D.history).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 2).attr('d', d3.line().curve(d3.curveStepAfter).x((h) => x(h.gen)).y((h) => y(h[sp]))));
+  const tip = tipFor(box);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent').style('touch-action', 'pan-y')
+    .on('pointermove pointerdown', (ev) => { const [px] = d3.pointer(ev, svg.node()); const g = Math.max(0, Math.min(GENS, Math.round(x.invert(px)))); const h = D.history[g]; const [bx, by] = d3.pointer(ev, box);
+      tip.show(bx, by, [el('b', { textContent: `第 ${g} 代` }), ...SP.map((sp) => el('div', {}, [el('span', { textContent: SPN[sp] + ' ', style: `color:var(--sp-${sp})` }), `${h[sp].toFixed(2)} · ${h[sp + '_id']}`]))]); })
+    .on('pointerleave', () => { tip.hidden = true; });
+}
+
+function drawScatter() {
+  const box = document.getElementById('c-scatter'); box.replaceChildren();
+  const W = Math.max(280, box.clientWidth), H = W < 560 ? 280 : 340;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '训练期适应度与样本外收益散点图');
+  const pts = ALL.filter((a) => M(a.tr).trades >= 30);
+  const y = d3.scaleLinear().domain(d3.extent(pts, (a) => M(a.oo).ret)).nice();
+  const m = { t: 10, r: 10, b: 34, l: textW(svg, y.ticks(5).map((t) => t + '%')) + 8 };
+  y.range([H - m.b, m.t]);
+  const x = d3.scaleLinear().domain(d3.extent(pts, (a) => M(a.tr).fit)).nice().range([m.l, W - m.r]);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat((d) => d + '%').tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.floor(W / 70)).tickSize(0).tickPadding(8)).call(axisStyle);
+  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text('训练期适应度 →');
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--muted'));
+  svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx', (a) => x(M(a.tr).fit)).attr('cy', (a) => y(M(a.oo).ret)).attr('r', (a) => (FINAL.has(a.id) ? 4 : 2.4))
+    .attr('fill', (a) => spColor(a.sp)).attr('fill-opacity', (a) => (FINAL.has(a.id) ? 0.95 : 0.35)).attr('stroke', (a) => (FINAL.has(a.id) ? css('--ring') : 'none')).attr('stroke-width', 1);
+  const tip = tipFor(box);
+  const qt = d3.quadtree(pts, (a) => x(M(a.tr).fit), (a) => y(M(a.oo).ret));
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent').style('cursor', 'pointer')
+    .on('pointermove', (ev) => { const [px, py] = d3.pointer(ev, svg.node()); const a = qt.find(px, py, 14); if (!a) { tip.hidden = true; return; } const [bx, by] = d3.pointer(ev, box);
+      tip.show(bx, by, [el('b', { textContent: `${SPN[a.sp]} · ${a.id}` }), el('div', { textContent: `训练适应度 ${M(a.tr).fit.toFixed(2)} · 收益 ${pct(M(a.tr).ret)}` }), el('div', { textContent: `样本外收益 ${pct(M(a.oo).ret)} · 回撤 ${pct(M(a.oo).dd, false)}` }), el('div', { className: 'm', textContent: '点击查看详情' })]); })
+    .on('pointerleave', () => { tip.hidden = true; })
+    .on('click', (ev) => { const [px, py] = d3.pointer(ev, svg.node()); const a = qt.find(px, py, 16); if (a) select(a.id); });
+}
+
+// 物种冠军表
+const champIds = [...new Set([...D.species_champions, D.oos_best])];
+document.getElementById('champ-body').append(...champIds.map((id) => {
+  const a = I.get(id); const tr = M(a.tr), oo = M(a.oo);
+  const name = id === D.oos_best && !SC.has(id) ? `${id}（样本外最佳）` : id === D.champion ? `${id}（总冠军）` : id;
+  const r = el('tr', { tabIndex: 0, onclick: () => select(id) }, [el('td', { textContent: name }), el('td', {}, [el('span', { className: 'dot', style: `background:var(--sp-${a.sp});margin-right:6px` }), SPN[a.sp]]),
+    el('td', { textContent: pct(tr.ret), className: cls(tr.ret) }), el('td', { textContent: pct(tr.dd, false) }), el('td', { textContent: tr.fit.toFixed(2) }),
+    el('td', { textContent: pct(oo.ret), className: cls(oo.ret) }), el('td', { textContent: pct(oo.dd, false) })]);
+  r.addEventListener('keydown', (e) => { if (e.key === 'Enter') select(id); });
+  return r;
+}));
+
+// 导航高亮
+const links = [...document.querySelectorAll('nav a')];
+const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((l) => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
+['lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
+
+function drawAll() { drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
+drawAll();
+let rt, lastW = innerWidth;
+addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(drawAll, 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
