@@ -64,7 +64,7 @@ def main():
     prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
     ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
     stats = {"n": len(closed), "wins": int(sum(t["pnl"] > 0 for t in closed)), "realized": round(sum(t["pnl"] for t in closed), 2)}
-    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.max_pos, "max_notional": rules.max_notional,
+    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.per_strategy * len(ids), "per_strategy": rules.per_strategy, "max_notional": rules.max_notional,
                "daily_stop": rules.daily_stop, "stops": [str(x)[:16] for x in run_portfolio.stops]}
     print(f"账户: {START_EQUITY} -> {eq_total[-1]:.2f}, 持仓 {len(positions)}, 平仓 {len(closed)}")
     for st in strategies:

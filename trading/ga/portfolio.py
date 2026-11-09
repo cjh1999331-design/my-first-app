@@ -7,7 +7,8 @@
 - 日亏停手：账户权益比当天（UTC 0 点）开盘时亏损达到 daily_stop（默认 10%），立即平掉全部持仓，
   当天不再开仓，第二天 0 点恢复
 - 盈利不设上限：基因 exit="trail" 的策略没有止盈，止损随价格移动
-- 每个币同时只有一个持仓；最多同时 max_pos 个持仓；单笔名义仓位不超过账户权益 × max_notional
+- 每个策略最多同时 per_strategy 个持仓（默认 5）；一个币已经有持仓（不管哪个策略开的）就不重复开；
+  单笔名义仓位不超过账户权益 × max_notional
 - 同一时刻多个信号时，按策略优先级（训练期得分高的在前）依次处理
 - 每个策略在自己周期的 K 线收盘判断信号，下一根开盘入场；在自己周期的 K 线收盘时检查止损/止盈/到期
 - 同一根 K 线同时碰到止损和止盈按止损算；开仓扣手续费，平仓扣手续费 + 资金费
@@ -26,7 +27,8 @@ class PortfolioRules:
     start_equity: float = 1000.0
     risk: float = 0.01
     lev: float = 10.0
-    max_pos: int = 40
+    max_pos: int = 999            # 账户总持仓上限（默认不限，由每个策略的上限决定）
+    per_strategy: int = 5
     daily_stop: float = 0.10
     max_notional: float = 1.0
     margin_cap: float = 0.95
@@ -95,6 +97,8 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
         # 1) 入场（下一根开盘价）
         for (_, _ci, name, si, side, i, key) in events[gi]:
             if paused or name in open_pos or len(open_pos) >= rules.max_pos or equity_now <= 0:
+                continue
+            if sum(1 for p in open_pos.values() if p["si"] == si) >= rules.per_strategy:
                 continue
             d, open_map, _ = series[key]
             j = open_map[gi]
