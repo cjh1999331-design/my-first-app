@@ -1,253 +1,228 @@
 <title>策略进化实验室</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-  /* 布局：顶部状态栏 + 锚点导航；主区单栏卡片：谱系图 → 选中个体详情 → 进化曲线 → 训练/样本外散点 → 物种冠军 */
+  /* 布局：顶部标题 + 三个标签页（账户 / 进化 / 验证），每页单栏，卡片只用于分组 */
   :root {
-    --bg: #f3f5f8; --panel: #ffffff; --plot: #f8fafc; --fg: #141b24; --muted: #5f6b7a; --line: #e1e6ec; --grid: #edf0f4;
-    --accent: #0f5fa8; --good: #12804a; --bad: #c33c2f; --ring: #141b24; --link: rgba(90,104,122,.22); --hl: #0f5fa8;
+    --bg: #f4f6f8; --panel: #ffffff; --soft: #f7f9fb; --fg: #121820; --muted: #66717f; --line: #e3e7ec; --grid: #eef1f4;
+    --accent: #1d5fd1; --good: #0f8a54; --bad: #d23b30; --ring: #121820; --link: rgba(90,104,122,.2); --hl: #1d5fd1;
     --sp-vol_breakout: #2f6fd0; --sp-ma_cross: #8a4fd8; --sp-rsi_revert: #e08a1e; --sp-channel: #1f9d63;
-    --tip: #ffffff; --shadow: 0 8px 28px rgba(20,30,50,.14);
+    --tip: #ffffff; --shadow: 0 8px 28px rgba(20,30,50,.12);
     --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-    --bg: #0d1117; --panel: #151b23; --plot: #10161d; --fg: #e7ecf2; --muted: #95a2b2; --line: #263140; --grid: #1c2531;
-    --accent: #5aa2ff; --good: #3fce8c; --bad: #ff6d60; --ring: #e7ecf2; --link: rgba(150,165,185,.18); --hl: #5aa2ff;
+    --bg: #0c1015; --panel: #141a21; --soft: #10151b; --fg: #e8edf2; --muted: #8f9bab; --line: #232c37; --grid: #1a222c;
+    --accent: #5b9cff; --good: #35c97f; --bad: #ff6a5c; --ring: #e8edf2; --link: rgba(150,165,185,.16); --hl: #5b9cff;
     --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
-    --tip: #1b232d; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; } }
+    --tip: #1a222b; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; } }
   :root[data-theme="dark"] {
-    --bg: #0d1117; --panel: #151b23; --plot: #10161d; --fg: #e7ecf2; --muted: #95a2b2; --line: #263140; --grid: #1c2531;
-    --accent: #5aa2ff; --good: #3fce8c; --bad: #ff6d60; --ring: #e7ecf2; --link: rgba(150,165,185,.18); --hl: #5aa2ff;
+    --bg: #0c1015; --panel: #141a21; --soft: #10151b; --fg: #e8edf2; --muted: #8f9bab; --line: #232c37; --grid: #1a222c;
+    --accent: #5b9cff; --good: #35c97f; --bad: #ff6a5c; --ring: #e8edf2; --link: rgba(150,165,185,.16); --hl: #5b9cff;
     --sp-vol_breakout: #5b95f0; --sp-ma_cross: #b183f5; --sp-rsi_revert: #f3a541; --sp-channel: #3dc985;
-    --tip: #1b232d; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+    --tip: #1a222b; --shadow: 0 8px 28px rgba(0,0,0,.55); color-scheme: dark; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
   body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+  .wrap { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
-  .top-in, .main { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .brand { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 12px 8px; flex-wrap: wrap; }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
   .logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; flex: none; }
-  .mark svg { width: 24px; height: 24px; }
-  .logo b { font-size: 1.05rem; display: block; line-height: 1.2; }
+  .mark { width: 32px; height: 32px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; flex: none; }
+  .mark svg { width: 20px; height: 20px; }
+  .logo b { font-size: 1rem; display: block; line-height: 1.2; }
   .logo span { font-size: 12px; color: var(--muted); }
-  .champ-head { text-align: right; min-width: 0; }
-  @media (max-width: 560px) { .champ-head { text-align: left; width: 100%; display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; } .champ-head .s { width: 100%; } }
-  .champ-head .k { font-size: 12px; color: var(--muted); }
-  .champ-head .v { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
-  .champ-head .s { font-size: 12px; font-variant-numeric: tabular-nums; }
-  nav { display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none; font-size: 14px; }
-  nav::-webkit-scrollbar { display: none; }
-  nav a { color: var(--muted); text-decoration: none; padding-block: 8px 10px; border-bottom: 2px solid transparent; white-space: nowrap; }
-  nav a:hover, nav a.on { color: var(--accent); border-bottom-color: var(--accent); }
-  .main { padding-block: 20px 56px; display: flex; flex-direction: column; gap: 20px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; scroll-margin-top: 120px; }
-  h2 { font-size: 1.15rem; margin: 0; text-wrap: balance; }
-  .sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch; }
-  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  @media (min-width: 720px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
-  .stat .k { font-size: 12px; color: var(--muted); }
-  .stat .v { font-family: var(--mono); font-size: clamp(1.05rem, 4.6vw, 1.3rem); white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .stat .f { font-size: 12px; color: var(--muted); }
+  .tabs { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .tabs a { font-size: 14px; color: var(--muted); text-decoration: none; padding: 5px 14px; border-radius: 7px; white-space: nowrap; }
+  .tabs a.on { background: var(--panel); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  @media (max-width: 520px) { .tabs { width: 100%; } .tabs a { flex: 1; text-align: center; } }
+  main.wrap { padding-block: 18px 56px; }
+  .view { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  h2 { font-size: 1rem; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 68ch; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
   .good { color: var(--good); } .bad { color: var(--bad); }
-  .plotbox { position: relative; background: var(--plot); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointer; }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); list-style: none; margin: 0; padding: 0; }
+  select { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); max-width: 100%; }
+  .seg { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .seg button { font: inherit; font-size: 13px; background: none; border: 0; color: var(--muted); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--panel); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  /* 账户 */
+  .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .hero .k { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .tag { font-size: 11px; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 0 7px; }
+  .equity { font-family: var(--mono); font-size: clamp(2rem, 9vw, 2.6rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.01em; }
+  .equity small { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .kpi { min-width: 0; }
+  .kpi .k { font-size: 12px; color: var(--muted); }
+  .kpi .v { font-family: var(--mono); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .readout { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.5em; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+  .readout b { color: var(--fg); font-weight: 600; }
+  .chartbox { position: relative; }
+  canvas { display: block; width: 100%; }
+  #ek { cursor: crosshair; touch-action: pan-y; }
+  .summary { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .summary b { font-family: var(--mono); font-weight: 600; }
+  .coins { display: flex; flex-direction: column; }
+  .coin { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .coin:first-child { border-top: 0; }
+  .coin .name { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+  .coin .name .pair { font-family: var(--mono); }
+  .pill { font-size: 11px; font-weight: 600; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .pill.long { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .pill.short { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .pill.flat { color: var(--muted); background: var(--soft); }
+  .coin .total { font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .coin .meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .coin .meta b { font-family: var(--mono); font-weight: 500; }
+  .more { font: inherit; font-size: 13px; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 8px; padding: 8px; cursor: pointer; }
+  .foot { font-size: 12px; color: var(--muted); margin: 0; }
+  /* 进化 */
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stats div { min-width: 0; }
+  .stats .k { font-size: 12px; color: var(--muted); }
+  .stats .v { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .plotbox { position: relative; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  #cv { cursor: pointer; touch-action: manipulation; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); list-style: none; margin: 0; padding: 0; }
   .legend li { display: flex; align-items: center; gap: 6px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
   .ringdot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ring); display: inline-block; box-sizing: border-box; }
-  .detail-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .detail-head .name { font-size: 1.25rem; font-weight: 700; }
-  .badge { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .when { font-size: 12px; color: var(--muted); }
+  .controls { display: none; }
+  .detail-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .detail-head .name { font-size: 1.1rem; font-weight: 700; }
+  .badge { font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .badge.champ { color: var(--accent); border-color: var(--accent); }
   .badge.pass { color: var(--good); border-color: var(--good); }
   .badge.fail { color: var(--bad); border-color: var(--bad); }
-  .genes { font-size: 15px; margin: 0; }
+  .genes { margin: 0; }
   .origin { font-size: 13px; color: var(--muted); margin: 0; }
   .origin button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .mt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
   .mt th, .mt td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .mt th:first-child, .mt td:first-child { text-align: left; color: var(--muted); font-weight: 400; }
   .mt thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .mt tbody tr:last-child td { border-bottom: 0; }
+  .folds { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .fold { text-align: center; min-width: 0; }
+  .fbar { height: 34px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+  .fbar span { width: 55%; border-radius: 3px 3px 0 0; }
+  .fbar .up { background: var(--good); } .fbar .dn { background: var(--bad); }
+  .fv { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .fk { font-size: 11px; color: var(--muted); }
+  /* 验证 */
+  .callout { border-left: 3px solid var(--accent); padding: 10px 12px; background: var(--soft); border-radius: 6px; margin: 0; font-size: 14px; }
   .scroll { overflow-x: auto; }
+  .rt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rt th, .rt td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  .rt th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .rt th:first-child, .rt td:first-child, .rt th:nth-child(2), .rt td:nth-child(2) { text-align: left; }
+  .rt td:nth-child(2) { white-space: normal; color: var(--muted); min-width: 140px; }
   .chart { position: relative; width: 100%; }
   .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
   .chart text { font-size: 11px; fill: var(--muted); font-family: var(--sans); }
   .tip { position: absolute; pointer-events: none; background: var(--tip); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; padding: 8px 10px; font-size: 12px; z-index: 3; max-width: 260px; font-variant-numeric: tabular-nums; }
   .tip .m { color: var(--muted); }
-  .trades { font-family: var(--mono); font-size: 12px; }
-  .trades td, .trades th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-  .trades th { color: var(--muted); font-weight: 600; font-family: var(--sans); }
-  .trades td:first-child, .trades th:first-child { text-align: left; }
-  .champs { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .champs th, .champs td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-  .champs th { color: var(--muted); font-weight: 600; font-size: 12px; }
-  .champs td:first-child, .champs th:first-child { text-align: left; }
-  .champs tr { cursor: pointer; }
-  .champs tr:hover td { background: var(--plot); }
-  .warn { border-left: 3px solid var(--bad); padding: 8px 12px; background: var(--plot); border-radius: 6px; font-size: 14px; margin: 0; }
   details { font-size: 13px; color: var(--muted); }
   details summary { cursor: pointer; color: var(--fg); font-weight: 600; }
-  details ul { padding-left: 1.2em; max-width: 75ch; }
-  .folds { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-  .fold { text-align: center; min-width: 0; }
-  .fbar { height: 36px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
-  .fbar span { width: 60%; border-radius: 3px 3px 0 0; }
-  .fbar .up { background: var(--good); } .fbar .dn { background: var(--bad); }
-  .fv { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; }
-  .fk { font-size: 11px; color: var(--muted); }
-  .tag { font-size: 11px; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
-  .champ-head small, .acct small { font-size: 12px; color: var(--muted); font-weight: 400; }
-  .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-  .chips::-webkit-scrollbar { display: none; }
-  .chip { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 5px 12px; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-  .chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
-  .acct { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
-  .acct .acc-main { grid-column: 1 / -1; }
-  @media (min-width: 720px) { .acct { grid-template-columns: 2fr 1fr 1fr 1fr; } .acct .acc-main { grid-column: auto; } }
-  .acct .k { font-size: 12px; color: var(--muted); }
-  .acct .big { font-family: var(--mono); font-size: clamp(1.8rem, 8vw, 2.3rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .acct .mid { font-family: var(--mono); font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .btn { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; min-width: 84px; }
-  .seg { display: inline-flex; }
-  .seg .btn { border-radius: 0; margin-left: -1px; }
-  .seg .btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; } .seg .btn:last-child { border-radius: 0 8px 8px 0; }
-  .seg .btn.on { color: var(--accent); border-color: var(--accent); position: relative; z-index: 1; }
-  .when { font-size: 12px; color: var(--muted); font-family: var(--mono); font-variant-numeric: tabular-nums; }
-  input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
-  .ptabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
-  .ptab { font: inherit; font-size: 13px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 6px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .ptab.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
-  .ptab .live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
-  .tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; display: inline-block; }
-  .tri.up { border-bottom: 9px solid var(--good); } .tri.dn { border-top: 9px solid var(--bad); }
-  .sw { width: 14px; height: 0; border-top: 2px dashed; display: inline-block; background: none !important; }
-  .legend .sw[style*="--good"] { border-color: var(--good); } .legend .sw[style*="--bad"] { border-color: var(--bad); }
-  .lists { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  @media (min-width: 720px) { .lists { grid-template-columns: 1fr 1fr; } }
-  .lists h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
-  .rows { display: flex; flex-direction: column; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .rows .r { display: grid; grid-template-columns: 76px 24px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
-  .rows .r .t { color: var(--muted); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rows .r b { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rows .empty { color: var(--muted); padding: 6px 0; }
-  .rows .r.new { animation: flash 1.2s ease-out; }
-  @keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
-  @media (prefers-reduced-motion: reduce) { .rows .r.new { animation: none; } }
-  .pairbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .pairsel { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); max-width: 100%; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
-  #kc { cursor: grab; touch-action: pan-y; }
-  #kc.drag { cursor: grabbing; }
-  .rows .r.click { cursor: pointer; }
+  details ul { padding-left: 1.2em; max-width: 72ch; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
 </style>
 
 <header class="top">
-  <div class="top-in">
-    <div class="brand">
-      <div class="logo">
-        <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="18" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="17" r="2"/><path d="M6.5 16.5 10.5 12.5M13.5 9.5l4-3M13.5 12.5l4 3"/></svg></div>
-        <div><b>策略进化实验室</b><span id="meta-line"></span></div>
-      </div>
-      <div class="champ-head">
-        <div class="k">OKX 模拟权益 <span class="tag">回放</span></div>
-        <div class="v"><span id="h-eq">—</span><small> USDT</small></div>
-        <div class="s" id="h-chg"></div>
-      </div>
+  <div class="wrap">
+    <div class="logo">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="18" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="17" r="2"/><path d="M6.5 16.5 10.5 12.5M13.5 9.5l4-3M13.5 12.5l4 3"/></svg></div>
+      <div><b>策略进化实验室</b><span id="meta-line"></span></div>
     </div>
-    <nav aria-label="页面导航">
-      <a href="#sim" class="on">模拟盘</a>
-      <a href="#lineage">基因池</a>
-      <a href="#rounds">轮次对比</a>
-      <a href="#detail">个体详情</a>
-      <a href="#curve">进化曲线</a>
-      <a href="#overfit">过拟合检验</a>
-      <a href="#champs">物种冠军</a>
+    <nav class="tabs" aria-label="页面">
+      <a href="#account" data-view="account" class="on">账户</a>
+      <a href="#evolution" data-view="evolution">进化</a>
+      <a href="#validation" data-view="validation">验证</a>
     </nav>
   </div>
 </header>
 
-<main class="main">
-  <section class="card" id="sim">
-    <h2>模拟盘 · 冠军上线回放</h2>
-    <p class="sub" id="sim-sub"></p>
-    <div class="chips" id="strat-chips" role="tablist" aria-label="选择策略"></div>
-    <div class="acct">
-      <div class="acc-main"><div class="k">账户权益</div><div class="big"><span id="acc-eq">—</span><small> USDT</small></div></div>
-      <div><div class="k">近 24 小时</div><div class="mid" id="acc-24">—</div></div>
-      <div><div class="k">累计</div><div class="mid" id="acc-tot">—</div></div>
-      <div><div class="k">持仓 / 已平仓</div><div class="mid" id="acc-pos">—</div></div>
+<main class="wrap">
+  <!-- 账户 -->
+  <section class="view" id="v-account">
+    <div class="card">
+      <div class="hero">
+        <div>
+          <div class="k">模拟账户权益 <span class="tag">回放</span></div>
+          <div class="equity"><span id="eq">—</span><small>USDT</small></div>
+        </div>
+        <select id="strat" aria-label="选择策略"></select>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="k">近 24 小时</div><div class="v" id="k24">—</div></div>
+        <div class="kpi"><div class="k" id="ktot-k">累计收益</div><div class="v" id="ktot">—</div></div>
+        <div class="kpi"><div class="k">最大回撤</div><div class="v" id="kdd">—</div></div>
+      </div>
     </div>
-    <div class="pairbar">
-      <label class="sr" for="pair-sel">选择币种</label>
-      <select id="pair-sel" class="pairsel"></select>
-      <span class="when" id="sim-time"></span>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>权益 K 线</h2>
+        <div class="seg" role="group" aria-label="周期"><button type="button" data-tf="1">4 小时</button><button type="button" data-tf="6" class="on">日</button><button type="button" data-tf="42">周</button></div>
+      </div>
+      <div class="readout" id="readout"></div>
+      <div class="chartbox"><canvas id="ek" role="img" aria-label="账户权益 K 线（USDT），左右拖动查看更早的数据"></canvas></div>
+      <p class="foot">每根 K 线是账户权益（已实现 + 未平仓浮动盈亏）在这段时间的开、高、低、收。左右拖动看更早的数据，点按看具体数值。</p>
     </div>
-    <div class="ptabs" id="pair-tabs" aria-label="常看币种"></div>
-    <div class="plotbox dark"><canvas id="kc" role="img" aria-label="4 小时 K 线，标出开仓、平仓、止损和止盈，左右拖动查看更早的行情"></canvas></div>
-    <p class="hint">K 线可以左右拖动查看最近 90 天；按 OKX 24 小时成交额排序的前 100 个币都能选。</p>
-    <ul class="legend"><li><span class="tri up"></span>开多</li><li><span class="tri dn"></span>开空</li><li><span class="dot" style="background:var(--good)"></span>盈利平仓</li><li><span class="dot" style="background:var(--bad)"></span>亏损平仓</li><li><span class="sw" style="background:var(--good)"></span>止盈</li><li><span class="sw" style="background:var(--bad)"></span>止损</li></ul>
-    <div class="plotbox"><canvas id="ec" role="img" aria-label="模拟盘资金曲线"></canvas></div>
-    <div class="lists">
-      <div><h3>当前持仓</h3><div id="sim-open" class="rows"></div></div>
-      <div><h3>最近成交</h3><div id="sim-log" class="rows"></div></div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>各币持仓与收益（USDT）</h2>
+        <div class="seg" role="group" aria-label="筛选"><button type="button" data-cf="open" class="on">持仓中</button><button type="button" data-cf="all">全部</button></div>
+      </div>
+      <div class="summary" id="csum"></div>
+      <div class="coins" id="coins"></div>
+      <button type="button" class="more" id="cmore" hidden></button>
     </div>
+    <p class="foot" id="sim-note"></p>
   </section>
 
-  <section class="card" id="summary">
-    <div class="stats" id="stats"></div>
-    <p class="warn" id="verdict"></p>
+  <!-- 进化 -->
+  <section class="view" id="v-evolution" hidden>
+    <div class="card">
+      <p class="sub" id="evo-intro"></p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card" id="lineage">
+      <div class="card-h"><h2>基因池 · 策略谱系</h2><span class="when" id="evo-gen"></span></div>
+      <ul class="legend" id="sp-legend"></ul>
+      <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期得分越高"></canvas></div>
+      <p class="foot">点越大得分越高，带环的当过物种冠军，不透明的是最后一代还活着的。点一下看详情。</p>
+    </div>
+    <div class="card" id="detail" aria-live="polite"></div>
   </section>
 
-  <section class="card" id="rounds">
-    <h2>轮次对比：扩到 100 个币后，训练分开始能预测样本外</h2>
-    <p class="sub">每一轮的样本外区间相同（2025-06-01 起）。样本外只用来检验，从没参与选择。第 1~3 轮只用 BTC、ETH、SOL、BNB、XRP 五个币，第 4 轮扩展到成交额前 100。</p>
-    <div class="scroll"><table class="champs"><thead><tr><th>轮次</th><th style="text-align:left">方法</th><th>最后一代样本外合格</th><th>最后一代样本外平均</th><th>训练前 100 名样本外平均</th><th>冠军 训练 → 样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
-    <div class="chart" id="c-rounds"></div>
-  </section>
-
-  <section class="card" id="lineage">
-    <h2>基因池 · 策略谱系</h2>
-    <p class="sub">每个点是一个策略。颜色是物种，点越大训练期稳健得分越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
-    <div class="controls"><span class="when" id="evo-gen"></span></div>
-    <ul class="legend" id="sp-legend"></ul>
-    <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期稳健得分越高"></canvas></div>
-  </section>
-
-  <section class="card" id="detail" aria-live="polite"></section>
-
-  <section class="card" id="curve">
-    <h2>每个物种的最高适应度</h2>
-    <p class="sub">每一代各物种排第一的稳健得分。得分 = 训练期 6 段各自得分的平均 − 0.5×波动，再和参数扰动后的“邻居”取折中；赚钱的段数少于 5 段会扣分。阶梯上升说明找到了更好的基因。</p>
-    <ul class="legend" id="sp-legend2"></ul>
-    <div class="chart" id="c-curve"></div>
-  </section>
-
-  <section class="card" id="overfit">
-    <h2>过拟合检验：训练分和样本外收益的关系</h2>
-    <p class="sub">全部个体，横轴是训练期稳健得分，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。这一轮训练分和样本外收益的相关性是 +0.44（前 3 轮都是负的），右边的高分个体整体偏上。</p>
-    <div class="chart" id="c-scatter"></div>
-  </section>
-
-  <section class="card" id="champs">
-    <h2>物种冠军</h2>
-    <p class="sub">最后一代每个物种训练期排名第一的个体，以及全部个体里样本外表现最好的一个。点一行查看详情。</p>
-    <div class="scroll"><table class="champs"><thead><tr><th>个体</th><th>物种</th><th>训练收益</th><th>训练回撤</th><th>稳健得分</th><th>样本外收益</th><th>样本外回撤</th></tr></thead><tbody id="champ-body"></tbody></table></div>
-    <details>
+  <!-- 验证 -->
+  <section class="view" id="v-validation" hidden>
+    <p class="callout" id="verdict"></p>
+    <div class="card" id="rounds">
+      <h2>四轮对比：样本外表现</h2>
+      <p class="sub">样本外区间（2025-06-01 起）只用来检验，不参与选择。第 1~3 轮只用 5 个币，第 4 轮扩展到成交额前 100。</p>
+      <div class="chart" id="c-rounds"></div>
+      <div class="scroll"><table class="rt"><thead><tr><th>轮次</th><th>方法</th><th>最后一代合格</th><th>前 100 名样本外</th><th>冠军 训练→样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
+    </div>
+    <div class="card" id="overfit">
+      <h2>训练分能不能预测样本外？</h2>
+      <p class="sub" id="overfit-sub"></p>
+      <div class="chart" id="c-scatter"></div>
+    </div>
+    <details class="card">
       <summary>回测方法和局限</summary>
       <ul>
-        <li>币种：OKX USDT 永续 24 小时成交额前 100 的加密货币（去掉稳定币、股票和大宗商品合约），排名取自数据下载当天。资金按当时已有数据的币平分，每个币独立运行。用今天的热门币回看过去，会偏向“后来火了”的币，这是一种幸存者偏差。</li>
-        <li>数据：1 小时 K 线，2021 年起；很多币上线较晚，没上线前不参与。</li>
-        <li>信号在 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
-        <li>每笔风险 = 账户 × 风险基因；名义仓位最高 10 倍杠杆。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
-        <li>稳健得分：训练期切成 6 段，每段单独回测（手续费按 0.08% 加压），每段得分 = 年化收益 ÷ max(回撤, 5%)，截断到 ±3；总分 = 平均 − 0.5×标准差，赚钱段数少于 5 段每少一段扣 1 分；再把参数随机扰动 ±10% 生成 2 个邻居，总分 = 0.5×本体 + 0.5×最差邻居。选择只看训练期。</li>
-        <li>样本外区间已经看过三次结果了，再根据它挑策略就会“偷看答案”。真正的下一次检验应该是之后的新行情（模拟盘）。</li>
-        <li>“样本外合格”= 样本外收益 &gt; 0、回撤 &lt; 30%、至少 10 笔交易。</li>
-        <li>这是为进化提速写的简化回测，没有爆仓、滑点和盘口模型；候选策略上线前要用 freqtrade 完整回测。</li>
+        <li>币种：OKX USDT 永续 24 小时成交额前 100 的加密货币（去掉稳定币、股票和大宗商品合约）。用今天的热门币回看过去会偏向“后来火了”的币，结果可能偏乐观。</li>
+        <li>资金按当时已上线的币平分，每个币独立运行；信号在 1 小时 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
+        <li>每笔风险 = 账户 × 风险基因；单币杠杆最高 10 倍。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
+        <li>稳健得分：训练期（2021-02 ~ 2025-06）切成 6 段分别回测（手续费按 0.08% 加压），平均分 − 0.5×波动，赚钱段数少于 5 段扣分；再和参数扰动 ±10% 的“邻居”取折中。</li>
+        <li>简化回测：没有滑点、爆仓和最小下单量。1000 USDT 分到约 65 个币后，单个持仓只有几 USDT，实盘会低于 OKX 最小下单量。</li>
+        <li>样本外区间已经看过四次结果，再按它挑策略就会“偷看答案”。下一步应该用实时模拟盘检验。</li>
         <li>代码在 GitHub 仓库 my-first-app 的 trading/ga/ 目录。</li>
       </ul>
     </details>
@@ -269,33 +244,24 @@ const GENS = D.meta.generations;
 const pct = (v, signed = true) => (v === null || v === undefined ? '—' : (signed && v > 0 ? '+' : '') + v.toFixed(1) + '%');
 const cls = (v) => (v > 0 ? 'good' : v < 0 ? 'bad' : '');
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
-// 指标数组顺序：[trades, ret, dd, win, pf, fit]
 const M = (a) => ({ trades: a[0], ret: a[1], dd: a[2], win: a[3], pf: a[4], fit: a[5] });
-
-// ---------- 头部和摘要
 const champ = I.get(D.champion);
-document.getElementById('meta-line').textContent = `${D.meta.exchange} · 前 ${D.universe ? D.universe.coins.length : D.meta.pairs.length} 币 · ${D.meta.timeframe} · ${GENS} 代`;
-const passN = ALL.filter((x) => x.pass).length;
-const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
-const stat = (k, v, f, c = '') => el('div', { className: 'stat' }, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v ' + c, textContent: v }), el('div', { className: 'f', textContent: f })]);
-document.getElementById('stats').append(
-  stat('进化代数', String(GENS), `每物种 ${D.meta.per_species} 个 · ${SP.length} 个物种`),
-  stat('回测过的个体', ALL.length.toLocaleString(), `训练期 ${D.meta.train[0]} ~ ${D.meta.train[1]}`),
-  stat('冠军稳健得分', M(champ.tr).fit.toFixed(2), `收益 ${pct(M(champ.tr).ret)} · 回撤 ${pct(M(champ.tr).dd, false)}`),
-  stat('样本外合格', `${passN} / ${ALL.length}`, `最后一代：${finalPass} / ${D.final_population.length}`, finalPass ? 'good' : 'bad'));
-document.getElementById('verdict').textContent = finalPass === 0
-  ? `最后一代 ${D.final_population.length} 个个体在样本外全部不合格，暂时不要拿去交易。`
-  : `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}），最后一代 ${finalPass} / ${D.final_population.length} 个样本外合格。这是四轮里第一次训练好、样本外也好。但优势很薄（样本外盈亏比约 1.05），回测是简化版，样本外数据也已经看过四次了，还要用 freqtrade 完整回测和实时模拟盘再验证，先不要投入真钱。`;
+const usd = (v) => d3.format(',.2f')(v);
+const sUsd = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + d3.format(',.2f')(Math.abs(v));
+document.getElementById('meta-line').textContent = `OKX 永续 · 前 ${D.universe ? D.universe.coins.length : 5} 热门币 · ${GENS} 代`;
+</script>
 
-// 图例
-for (const id of ['sp-legend', 'sp-legend2']) {
-  const ul = document.getElementById(id);
-  SP.forEach((sp) => {
-    const n = ALL.filter((x) => x.sp === sp).length;
-    ul.append(el('li', {}, [el('span', { className: 'dot', style: `background:var(--sp-${sp})` }), `${SPN[sp]}${id === 'sp-legend' ? ` ${n}` : ''}`]));
-  });
-  if (id === 'sp-legend') ul.append(el('li', {}, [el('span', { className: 'ringdot' }), '当过物种冠军']));
+<script>
+// ---------- 小工具
+function textW(svg, labels) { let m = 0; labels.forEach((s) => { const n = svg.append('text').text(s); m = Math.max(m, n.node().getComputedTextLength() || s.length * 7); n.remove(); }); return m; }
+const axisStyle = (g) => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', css('--grid')); };
+function tipFor(box) {
+  const t = el('div', { className: 'tip', hidden: true }); box.appendChild(t);
+  t.show = (x, y, kids) => { t.replaceChildren(...kids); t.hidden = false; const w = box.clientWidth, tw = t.offsetWidth, th = t.offsetHeight; let l = x + 12; if (l + tw > w) l = Math.max(0, x - tw - 12); let tp = y - th - 10; if (tp < 0) tp = y + 16; t.style.left = l + 'px'; t.style.top = tp + 'px'; };
+  return t;
 }
+const parse = d3.utcParse('%Y-%m-%d');
+
 
 // ---------- 谱系图（canvas，粒子动画）
 const cv = document.getElementById('cv');
@@ -449,312 +415,6 @@ cv.addEventListener('click', (ev) => {
   if (best) select(best, false);
 });
 
-// ---------- 模拟盘（回放到最新，静态）
-const R = D.replay;
-const BARMS = R.bar_hours * 3600e3;
-const T0 = Date.parse(R.start + ':00Z');
-const KN = R.n - 1;                 // 最新一根
-const CN = R.cn;                    // 页面里保存的 K 线根数（最近 90 天）
-const C0 = R.n - CN;                // 第一根保存的 K 线在全期中的序号
-const CANDLES = {};
-Object.entries(R.candles).forEach(([p, c]) => {
-  const f = Math.pow(10, -c.e); const arr = new Array(CN).fill(null);
-  for (let i = 0; i < c.d.length / 4; i++) arr[c.off + i] = [c.d[i * 4] * f, c.d[i * 4 + 1] * f, c.d[i * 4 + 2] * f, c.d[i * 4 + 3] * f];
-  CANDLES[p] = arr;
-});
-const candleAt = (p, k) => (CANDLES[p] && k >= C0 ? CANDLES[p][k - C0] : null);
-const STR = R.strategies.map((s) => ({ ...s, trades: s.trades.map((t) => ({ pair: t[0], side: t[1], te: t[2], tx: t[3], entry: t[4], exit: t[5], pnl: t[6], lev: t[7], stop: t[8], tp: t[9], ki: t[10], kx: t[11] })) }));
-const RANK = new Map((D.universe?.coins || []).map((c) => [c.base, c]));
-const sim = { si: 0, pair: null, off: 0 };
-const fmtBar = (k) => d3.utcFormat('%Y-%m-%d %H:%M')(new Date(T0 + (Math.floor(k) + 1) * BARMS)) + ' UTC';
-const fmtPx = (v) => d3.format(v >= 10000 ? ',.0f' : v >= 1000 ? ',.1f' : v >= 10 ? ',.2f' : v >= 0.1 ? ',.4f' : '.3~e')(v);
-const usd = (v) => d3.format(',.2f')(v);
-const sgnUsd = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + d3.format(',.2f')(Math.abs(v));
-document.getElementById('sim-sub').textContent = `假设进化选出的策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，资金按当时已上线的热门币平分，用 OKX 永续真实 K 线一直跑到 ${R.end.slice(0, 10)}。没有真实下单；真正的模拟盘需要一台在线服务器。`;
-document.getElementById('sim-time').textContent = `截至 ${fmtBar(KN)}`;
-
-function openAt(s, k) { return s.trades.filter((t) => t.ki <= k && k < t.kx); }
-function closedBy(s, k) { return s.trades.filter((t) => t.kx <= k); }
-function tradeCount(s) { const m = new Map(); s.trades.forEach((t) => m.set(t.pair, (m.get(t.pair) || 0) + 1)); return m; }
-
-// 策略切换
-const chips = document.getElementById('strat-chips');
-STR.forEach((s, i) => {
-  const b = el('button', { className: 'chip' + (i === 0 ? ' on' : ''), type: 'button' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${s.id} · ${SPN[s.species]}${s.id === D.champion ? ' · 冠军' : ''}`]);
-  b.addEventListener('click', () => { sim.si = i; chips.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === i)); pickDefaultPair(); simRender(); });
-  chips.append(b);
-});
-// 币种：下拉选全部 + 常看标签（持仓中、交易最多）
-const psel = document.getElementById('pair-sel');
-const ptabs = document.getElementById('pair-tabs');
-function pairOptions() {
-  const s = STR[sim.si]; const cnt = tradeCount(s);
-  const list = Object.keys(CANDLES).sort((a, b) => (RANK.get(a)?.rank ?? 999) - (RANK.get(b)?.rank ?? 999));
-  psel.replaceChildren(...list.map((p) => { const o = new Option(`${RANK.get(p)?.rank ?? '–'}. ${p}/USDT${cnt.get(p) ? ` · 近 90 天 ${cnt.get(p)} 笔` : ''}`, p); return o; }));
-  psel.value = sim.pair;
-  const open = new Set(openAt(s, KN).map((t) => t.pair));
-  const fav = [...new Set([...open, ...[...cnt.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]), 'BTC', 'ETH'])].filter((p) => CANDLES[p]).slice(0, 8);
-  ptabs.replaceChildren(...fav.map((p) => {
-    const b = el('button', { className: 'ptab' + (p === sim.pair ? ' on' : ''), type: 'button' }, [p]);
-    if (open.has(p)) b.prepend(el('span', { className: 'live' }));
-    b.addEventListener('click', () => setPair(p));
-    return b;
-  }));
-}
-function setPair(p) { sim.pair = p; sim.off = 0; pairOptions(); drawK(); }
-psel.addEventListener('change', () => setPair(psel.value));
-function pickDefaultPair() {
-  const s = STR[sim.si]; const open = openAt(s, KN);
-  const last = open[0] || s.trades[s.trades.length - 1];
-  sim.pair = last && CANDLES[last.pair] ? last.pair : CANDLES.BTC ? 'BTC' : Object.keys(CANDLES)[0];
-  sim.off = 0; pairOptions();
-}
-
-// 画布
-const kc = document.getElementById('kc'), ec = document.getElementById('ec');
-let KC = null, EC = null;
-function simSetup() { const W = kc.parentElement.clientWidth; KC = setupCanvas(kc, W < 560 ? 300 : 380); EC = setupCanvas(ec, W < 560 ? 150 : 180); }
-const winBars = () => (KC.W < 560 ? 60 : 110);
-// 拖动平移
-(() => {
-  let x0 = null, off0 = 0;
-  kc.addEventListener('pointerdown', (e) => { x0 = e.clientX; off0 = sim.off; kc.classList.add('drag'); kc.setPointerCapture(e.pointerId); });
-  kc.addEventListener('pointermove', (e) => {
-    if (x0 === null) return;
-    const bw = (KC.W - 62) / winBars();
-    const avail = (CANDLES[sim.pair] || []).filter(Boolean).length;
-    sim.off = Math.max(0, Math.min(Math.max(0, avail - winBars()), Math.round(off0 + (e.clientX - x0) / bw)));
-    drawK();
-  });
-  const end = () => { x0 = null; kc.classList.remove('drag'); };
-  kc.addEventListener('pointerup', end); kc.addEventListener('pointercancel', end);
-})();
-
-function drawK() {
-  const { ctx, W, H } = KC; const s = STR[sim.si];
-  const win = winBars(); const k1 = KN - sim.off;
-  const firstK = C0 + (CANDLES[sim.pair] || []).findIndex(Boolean);
-  const k0 = Math.max(firstK, k1 - win + 1);
-  const padR = 62, padB = 22, padT = 22; const bw = (W - padR) / win;
-  const xx = (i) => (i - (k1 - win + 1) + 0.5) * bw;
-  const c = { good: css('--good'), bad: css('--bad'), grid: css('--grid'), muted: css('--muted'), fg: css('--fg'), acc: css('--accent'), panel: css('--panel') };
-  ctx.clearRect(0, 0, W, H);
-  if (!candleAt(sim.pair, k1)) { ctx.fillStyle = c.muted; ctx.font = `13px ${css('--sans')}`; ctx.fillText('这个币没有足够的 K 线数据', 12, 30); return; }
-  const trades = s.trades.filter((tr) => tr.pair === sim.pair && tr.ki <= k1 && tr.kx >= k0);
-  const open = trades.filter((tr) => k1 < tr.kx);
-  let lo = Infinity, hi = -Infinity;
-  for (let i = k0; i <= k1; i++) { const cd = candleAt(sim.pair, i); if (cd) { lo = Math.min(lo, cd[2]); hi = Math.max(hi, cd[1]); } }
-  open.forEach((tr) => { [tr.stop, tr.tp, tr.entry].forEach((v) => { if (v > lo * 0.8 && v < hi * 1.25) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); });
-  const pad = (hi - lo) * 0.08 || hi * 0.01; lo -= pad; hi += pad;
-  const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-  ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
-  d3.scaleLinear().domain([lo, hi]).ticks(5).forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(fmtPx(v), W - padR + 6, y); });
-  ctx.textBaseline = 'alphabetic';
-  [0.12, 0.5, 0.88].forEach((f) => { const i = Math.round(k1 - win + 1 + f * (win - 1)); if (i < k0) return; ctx.fillStyle = c.muted; ctx.textAlign = 'center'; ctx.fillText(d3.utcFormat('%m-%d %H时')(new Date(T0 + i * BARMS)), xx(i), H - 6); });
-  ctx.textAlign = 'left';
-  const body = Math.max(1, bw * 0.62);
-  for (let i = k0; i <= k1; i++) {
-    const cd = candleAt(sim.pair, i); if (!cd) continue;
-    const [o, h, l, cl] = cd; const col = cl >= o ? c.good : c.bad; const x = xx(i);
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yy(h)); ctx.lineTo(x, yy(l)); ctx.stroke();
-    const y1 = yy(Math.max(o, cl)), y2 = yy(Math.min(o, cl));
-    ctx.fillStyle = col; ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1));
-  }
-  trades.forEach((tr) => {
-    const xe = xx(Math.max(tr.ki, k0)), ye = yy(tr.entry);
-    if (tr.kx <= k1) {
-      const xq = xx(tr.kx), yq = yy(tr.exit);
-      ctx.strokeStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.globalAlpha = 0.7; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(xe, ye); ctx.lineTo(xq, yq); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-      ctx.fillStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.strokeStyle = c.panel; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(xq, yq, 4, 0, 6.2832); ctx.fill(); ctx.stroke();
-    } else {
-      [[tr.entry, c.acc, '开仓', []], [tr.stop, c.bad, '止损', [4, 4]], [tr.tp, c.good, '止盈', [4, 4]]].forEach(([v, col, label, dash]) => {
-        const y = yy(v); if (y < padT - 2 || y > H - padB + 2) return;
-        ctx.strokeStyle = col; ctx.setLineDash(dash); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(xe, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.setLineDash([]);
-        ctx.fillStyle = col; ctx.font = `600 11px ${css('--sans')}`; ctx.textAlign = 'right'; ctx.fillText(label, W - padR - 4, y - 4); ctx.textAlign = 'left';
-      });
-    }
-    if (tr.ki >= k0) {
-      const cdl = candleAt(sim.pair, tr.ki); if (!cdl) return;
-      const up = tr.side > 0; const yb = up ? yy(cdl[2]) + 6 : yy(cdl[1]) - 6;
-      ctx.fillStyle = up ? c.good : c.bad; ctx.beginPath();
-      if (up) { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb + 9); ctx.lineTo(xe + 5, yb + 9); } else { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb - 9); ctx.lineTo(xe + 5, yb - 9); }
-      ctx.fill();
-    }
-  });
-  const last = candleAt(sim.pair, k1); const ly = yy(last[3]); const lc = last[3] >= last[0] ? c.good : c.bad;
-  ctx.strokeStyle = lc; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W - padR, ly); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-  ctx.fillStyle = lc; ctx.fillRect(W - padR + 2, ly - 9, padR - 4, 18);
-  ctx.fillStyle = '#fff'; ctx.font = `600 11px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillText(fmtPx(last[3]), W - padR + 6, ly); ctx.textBaseline = 'alphabetic';
-  const rk = RANK.get(sim.pair);
-  ctx.fillStyle = c.fg; ctx.font = `600 12px ${css('--sans')}`; ctx.fillText(`${sim.pair}/USDT 永续 · 4H${rk ? ` · 成交额第 ${rk.rank}` : ''}${sim.off ? ` · 往前 ${Math.round(sim.off / 6)} 天` : ''}`, 6, 14);
-}
-
-function drawE(t) {
-  const { ctx, W, H } = EC; const s = STR[sim.si]; const eq = s.equity;
-  const padL = 46, padR = 12, padT = 12, padB = 18;
-  const lo = Math.min(R.start_equity, d3.min(eq)) * 0.995, hi = Math.max(R.start_equity, d3.max(eq)) * 1.005;
-  const xx = (i) => padL + (i / (R.n - 1)) * (W - padL - padR);
-  const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-  const c = { grid: css('--grid'), muted: css('--muted'), good: css('--good'), bad: css('--bad') };
-  ctx.clearRect(0, 0, W, H);
-  ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
-  d3.scaleLinear().domain([lo, hi]).ticks(3).forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(d3.format(',')(v), 2, y); });
-  ctx.textBaseline = 'alphabetic';
-  const by = yy(R.start_equity); ctx.strokeStyle = c.muted; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(padL, by); ctx.lineTo(W - padR, by); ctx.stroke(); ctx.setLineDash([]);
-  const lc = eq[KN] >= R.start_equity ? c.good : c.bad;
-  const step = Math.max(1, Math.floor(R.n / (W - padL)));
-  const grad = ctx.createLinearGradient(0, padT, 0, H - padB); grad.addColorStop(0, lc + '55'); grad.addColorStop(1, lc + '00');
-  ctx.beginPath(); ctx.moveTo(xx(0), H - padB);
-  for (let i = 0; i <= KN; i += step) ctx.lineTo(xx(i), yy(eq[i]));
-  ctx.lineTo(xx(KN), yy(eq[KN])); ctx.lineTo(xx(KN), H - padB); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
-  ctx.beginPath(); for (let i = 0; i <= KN; i += step) ctx[i === 0 ? 'moveTo' : 'lineTo'](xx(i), yy(eq[i])); ctx.lineTo(xx(KN), yy(eq[KN]));
-  ctx.strokeStyle = lc; ctx.lineWidth = 1.8; ctx.stroke();
-  const hx = xx(KN), hy = yy(eq[KN]); const pulse = reduceMotion ? 0 : (Math.sin(t / 260) + 1) / 2;
-  ctx.globalAlpha = 0.22 + 0.2 * pulse; ctx.fillStyle = lc; ctx.beginPath(); ctx.arc(hx, hy, 6 + pulse * 4, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = c.muted; ctx.font = `11px ${css('--sans')}`; ctx.fillText(`资金曲线 · ${R.start.slice(0, 10)} 起`, padL + 2, padT + 2);
-}
-
-function cs1(tr) { const cd = candleAt(tr.pair, KN); return cd ? tr.side * (cd[3] / tr.entry - 1) * tr.lev * 100 : 0; }
-function renderAccount() {
-  const s = STR[sim.si]; const eq = s.equity[KN];
-  const d24 = eq - s.equity[Math.max(0, KN - 6)]; const tot = eq / R.start_equity - 1;
-  document.getElementById('acc-eq').textContent = usd(eq);
-  const a24 = document.getElementById('acc-24'); a24.textContent = sgnUsd(d24); a24.className = 'mid ' + cls(d24);
-  const at = document.getElementById('acc-tot'); at.textContent = pct(tot * 100); at.className = 'mid ' + cls(tot);
-  const open = openAt(s, KN); const closed = closedBy(s, KN);
-  document.getElementById('acc-pos').textContent = `${open.length} / ${(s.n_trades - open.length).toLocaleString()}`;
-  document.getElementById('h-eq').textContent = usd(eq);
-  document.getElementById('h-chg').replaceChildren(el('span', { className: cls(d24), textContent: `24h ${sgnUsd(d24)}` }), ' · ', el('span', { className: cls(tot), textContent: `累计 ${pct(tot * 100)}` }), ` · ${s.id}`);
-  const row = (tr) => {
-    const isOpen = KN < tr.kx; const v = isOpen ? cs1(tr) : tr.pnl;
-    const r = el('div', { className: 'r click', tabIndex: 0, title: '在 K 线上查看' }, [el('b', { textContent: tr.pair }), el('span', { textContent: tr.side > 0 ? '多' : '空', className: tr.side > 0 ? 'good' : 'bad' }),
-      el('span', { className: 't', textContent: `${(isOpen ? tr.te : tr.tx).slice(5).replace('T', ' ')} · ${tr.lev.toFixed(1)}x` }), el('b', { textContent: isOpen ? `浮 ${pct(v)}` : sgnUsd(v), className: cls(v) })]);
-    const go = () => { setPair(tr.pair); sim.off = Math.max(0, KN - Math.min(KN, tr.kx + 10)); drawK(); kc.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); };
-    r.addEventListener('click', go); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-    return r;
-  };
-  const openSorted = open.slice().sort((a, b) => Math.abs(cs1(b)) - Math.abs(cs1(a)));
-  document.getElementById('sim-open').replaceChildren(...(open.length ? [...openSorted.slice(0, 10).map(row), ...(open.length > 10 ? [el('div', { className: 'empty', textContent: `还有 ${open.length - 10} 个持仓，可以在上面的币种列表里查看` })] : [])] : [el('div', { className: 'empty', textContent: '空仓' })]));
-  const recent = closed.slice().sort((a, b) => b.kx - a.kx).slice(0, 8);
-  document.getElementById('sim-log').replaceChildren(...(recent.length ? recent.map(row) : [el('div', { className: 'empty', textContent: '还没有成交' })]));
-}
-let simRaf = false, simVisible = true;
-function simRender() { renderAccount(); drawK(); drawE(performance.now()); }
-function simLoop(t) { drawE(t); if (simVisible && !reduceMotion) requestAnimationFrame(simLoop); else simRaf = false; }
-function simKick() { if (!simRaf && !reduceMotion) { simRaf = true; requestAnimationFrame(simLoop); } }
-new IntersectionObserver((es) => { simVisible = es[0].isIntersecting; if (simVisible) simKick(); }).observe(document.getElementById('sim'));
-pickDefaultPair();
-
-// ---------- 详情
-function select(id, scroll = true) {
-  selected = id; drawLineage(); renderDetail();
-  if (scroll) document.getElementById('lineage').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-}
-function renderDetail() {
-  const a = I.get(selected); const tr = M(a.tr), oo = M(a.oo);
-  const box = document.getElementById('detail'); box.replaceChildren();
-  const badges = [];
-  if (a.id === D.champion) badges.push(el('span', { className: 'badge champ', textContent: '当前总冠军' }));
-  else if (SC.has(a.id)) badges.push(el('span', { className: 'badge champ', textContent: '当前物种冠军' }));
-  if (a.champN > 0) badges.push(el('span', { className: 'badge', textContent: `当过 ${a.champN} 代物种冠军` }));
-  badges.push(el('span', { className: 'badge ' + (a.pass ? 'pass' : 'fail'), textContent: a.pass ? '样本外合格' : '样本外不合格' }));
-  if (FINAL.has(a.id)) badges.push(el('span', { className: 'badge', textContent: '存活到最后一代' }));
-  box.append(el('div', { className: 'detail-head' }, [el('span', { className: 'dot', style: `background:var(--sp-${a.sp});width:14px;height:14px` }), el('span', { className: 'name', textContent: `${SPN[a.sp]} · ${a.id}` }), ...badges]));
-  box.append(el('p', { className: 'genes', textContent: a.desc }));
-  const origin = el('p', { className: 'origin' });
-  origin.append(`第 ${a.gen} 代出生 · ${a.origin} · 父代 `);
-  if (a.parents.length) a.parents.forEach((p, i) => { if (i) origin.append('、'); origin.append(el('button', { type: 'button', textContent: p, onclick: () => select(p) })); });
-  else origin.append('无');
-  origin.append(` · ${FINAL.has(a.id) ? '存活至今' : `存活到第 ${a.until} 代`}`);
-  box.append(origin);
-  const row = (k, f1, f2) => el('tr', {}, [el('td', { textContent: k }), el('td', f1), el('td', f2)]);
-  const tb = el('tbody', {}, [
-    row('收益', { textContent: pct(tr.ret), className: cls(tr.ret) }, { textContent: pct(oo.ret), className: cls(oo.ret) }),
-    row('最大回撤', { textContent: pct(tr.dd, false) }, { textContent: pct(oo.dd, false) }),
-    row('交易次数', { textContent: String(tr.trades) }, { textContent: String(oo.trades) }),
-    row('胜率', { textContent: pct(tr.win, false) }, { textContent: pct(oo.win, false) }),
-    row('盈亏比', { textContent: tr.pf.toFixed(2) }, { textContent: oo.pf.toFixed(2) }),
-    row('得分', { textContent: tr.fit.toFixed(2) + '（稳健）' }, { textContent: oo.fit.toFixed(2) + '（单段）' })]);
-  if (a.folds) {
-    const fb = el('div', { className: 'folds' });
-    const mx = Math.max(5, ...a.folds.map((v) => Math.abs(v)));
-    a.folds.forEach((v, k) => {
-      const [f0] = D.meta.folds[k];
-      fb.append(el('div', { className: 'fold' }, [el('div', { className: 'fbar' }, [el('span', { className: v >= 0 ? 'up' : 'dn', style: `height:${Math.max(2, Math.abs(v) / mx * 34)}px` })]),
-        el('div', { className: 'fv ' + cls(v), textContent: pct(v) }), el('div', { className: 'fk', textContent: f0.slice(2, 7) })]));
-    });
-    box.append(el('div', { className: 'sub', textContent: `训练期 ${a.folds.length} 段分别回测的收益（加压手续费）：${a.folds.filter((v) => v > 0).length} 段赚钱` }), fb);
-  }
-  box.append(el('div', { className: 'scroll' }, [el('table', { className: 'mt' }, [el('thead', {}, [el('tr', {}, [el('th', { textContent: '' }), el('th', { textContent: `训练期` }), el('th', { textContent: `样本外` })])]), tb])]));
-  const curve = D.curves[a.id];
-  if (curve) {
-    box.append(el('h2', { textContent: '资金曲线（训练期 + 样本外连续）', style: 'font-size:1rem;margin-top:6px' }));
-    const c = el('div', { className: 'chart' }); box.append(c); drawEquity(c, curve, a.sp);
-  } else {
-    box.append(el('p', { className: 'sub', textContent: '只为冠军和最后一代前 12 名保存了资金曲线和交易记录。' }));
-  }
-  const trades = D.trades[a.id];
-  if (trades && trades.length) {
-    box.append(el('h2', { textContent: '最近 8 笔交易', style: 'font-size:1rem;margin-top:6px' }));
-    const body = el('tbody', {}, trades.slice().reverse().map((t) => el('tr', {}, [
-      el('td', { textContent: t[0] }), el('td', { textContent: t[1].slice(5) }), el('td', { textContent: t[3] > 0 ? '多' : '空', className: t[3] > 0 ? 'good' : 'bad' }),
-      el('td', { textContent: t[7].toFixed(1) + 'x' }), el('td', { textContent: (t[6] > 0 ? '+' : '') + t[6].toFixed(1), className: cls(t[6]) })])));
-    box.append(el('div', { className: 'scroll' }, [el('table', { className: 'trades' }, [el('thead', {}, [el('tr', {}, ['币', '开仓 (UTC)', '方向', '杠杆', '盈亏 USDT'].map((h) => el('th', { textContent: h })))]), body])]));
-  }
-}
-
-// ---------- 小工具
-function textW(svg, labels) { let m = 0; labels.forEach((s) => { const n = svg.append('text').text(s); m = Math.max(m, n.node().getComputedTextLength() || s.length * 7); n.remove(); }); return m; }
-const axisStyle = (g) => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', css('--grid')); };
-function tipFor(box) {
-  const t = el('div', { className: 'tip', hidden: true }); box.appendChild(t);
-  t.show = (x, y, kids) => { t.replaceChildren(...kids); t.hidden = false; const w = box.clientWidth, tw = t.offsetWidth, th = t.offsetHeight; let l = x + 12; if (l + tw > w) l = Math.max(0, x - tw - 12); let tp = y - th - 10; if (tp < 0) tp = y + 16; t.style.left = l + 'px'; t.style.top = tp + 'px'; };
-  return t;
-}
-const parse = d3.utcParse('%Y-%m-%d');
-
-function drawEquity(box, curve, sp) {
-  const pts = curve.map(([d, v]) => ({ d: parse(d), v }));
-  const W = Math.max(280, box.clientWidth || box.parentElement.clientWidth - 36), H = 200;
-  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '资金曲线');
-  const y = d3.scaleLinear().domain(d3.extent([...pts.map((p) => p.v), 1000])).nice();
-  const m = { t: 16, r: 8, b: 24, l: textW(svg, y.ticks(4).map((t) => d3.format(',')(t))) + 8 };
-  y.range([H - m.b, m.t]);
-  const x = d3.scaleUtc().domain(d3.extent(pts, (p) => p.d)).range([m.l, W - m.r]);
-  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',')).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
-  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(W / 110))).tickFormat(d3.utcFormat('%y-%m')).tickSize(0).tickPadding(8)).call(axisStyle);
-  const sx = x(parse(D.meta.oos[0]));
-  svg.append('rect').attr('x', sx).attr('y', m.t).attr('width', W - m.r - sx).attr('height', H - m.t - m.b).attr('fill', css('--plot'));
-  svg.append('line').attr('x1', sx).attr('x2', sx).attr('y1', m.t - 6).attr('y2', H - m.b).attr('stroke', css('--muted')).attr('stroke-dasharray', '4 4');
-  svg.append('text').attr('x', sx - 5).attr('y', m.t - 4).attr('text-anchor', 'end').text('训练期');
-  svg.append('text').attr('x', sx + 5).attr('y', m.t - 4).text('样本外');
-  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(1000)).attr('y2', y(1000)).attr('stroke', css('--muted')).attr('stroke-dasharray', '2 3');
-  svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 2).attr('d', d3.line().x((p) => x(p.d)).y((p) => y(p.v)));
-  const tip = tipFor(box); const bis = d3.bisector((p) => p.d).center;
-  const dot = svg.append('circle').attr('r', 4).attr('fill', spColor(sp)).style('display', 'none');
-  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent').style('touch-action', 'pan-y')
-    .on('pointermove pointerdown', (ev) => { const [px] = d3.pointer(ev, svg.node()); const p = pts[bis(pts, x.invert(px))]; dot.style('display', null).attr('cx', x(p.d)).attr('cy', y(p.v)); const [bx, by] = d3.pointer(ev, box); tip.show(bx, by, [el('b', { textContent: d3.utcFormat('%Y-%m-%d')(p.d) }), el('div', { textContent: `${d3.format(',.0f')(p.v)} USDT` })]); })
-    .on('pointerleave', () => { dot.style('display', 'none'); tip.hidden = true; });
-}
-
-function drawCurve() {
-  const box = document.getElementById('c-curve'); box.replaceChildren();
-  const W = Math.max(280, box.clientWidth), H = W < 560 ? 230 : 270;
-  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各物种每代最高适应度');
-  const y = d3.scaleLinear().domain([Math.min(0, d3.min(D.history, (h) => d3.min(SP, (s) => h[s]))), d3.max(D.history, (h) => d3.max(SP, (s) => h[s]))]).nice();
-  const m = { t: 10, r: 10, b: 24, l: textW(svg, y.ticks(5).map(String)) + 8 };
-  y.range([H - m.b, m.t]);
-  const x = d3.scaleLinear().domain([0, GENS]).range([m.l, W - m.r]);
-  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
-  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.min(7, Math.floor(W / 60))).tickFormat((d) => `${d}`).tickSize(0).tickPadding(8)).call(axisStyle);
-  SP.forEach((sp) => svg.append('path').datum(D.history).attr('fill', 'none').attr('stroke', spColor(sp)).attr('stroke-width', 2).attr('d', d3.line().curve(d3.curveStepAfter).x((h) => x(h.gen)).y((h) => y(h[sp]))));
-  const tip = tipFor(box);
-  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent').style('touch-action', 'pan-y')
-    .on('pointermove pointerdown', (ev) => { const [px] = d3.pointer(ev, svg.node()); const g = Math.max(0, Math.min(GENS, Math.round(x.invert(px)))); const h = D.history[g]; const [bx, by] = d3.pointer(ev, box);
-      tip.show(bx, by, [el('b', { textContent: `第 ${g} 代` }), ...SP.map((sp) => el('div', {}, [el('span', { textContent: SPN[sp] + ' ', style: `color:var(--sp-${sp})` }), `${h[sp].toFixed(2)} · ${h[sp + '_id']}`]))]); })
-    .on('pointerleave', () => { tip.hidden = true; });
-}
 
 function drawScatter() {
   const box = document.getElementById('c-scatter'); box.replaceChildren();
@@ -777,58 +437,228 @@ function drawScatter() {
     .on('pointermove', (ev) => { const [px, py] = d3.pointer(ev, svg.node()); const a = qt.find(px, py, 14); if (!a) { tip.hidden = true; return; } const [bx, by] = d3.pointer(ev, box);
       tip.show(bx, by, [el('b', { textContent: `${SPN[a.sp]} · ${a.id}` }), el('div', { textContent: `训练适应度 ${M(a.tr).fit.toFixed(2)} · 收益 ${pct(M(a.tr).ret)}` }), el('div', { textContent: `样本外收益 ${pct(M(a.oo).ret)} · 回撤 ${pct(M(a.oo).dd, false)}` }), el('div', { className: 'm', textContent: '点击查看详情' })]); })
     .on('pointerleave', () => { tip.hidden = true; })
-    .on('click', (ev) => { const [px, py] = d3.pointer(ev, svg.node()); const a = qt.find(px, py, 16); if (a) select(a.id); });
+    .on('click', (ev) => { const [px, py] = d3.pointer(ev, svg.node()); const a = qt.find(px, py, 16); if (a) select(a.id, true); });
 }
 
-// 物种冠军表
-const champIds = [...new Set([...D.species_champions, D.oos_best])];
-document.getElementById('champ-body').append(...champIds.map((id) => {
-  const a = I.get(id); const tr = M(a.tr), oo = M(a.oo);
-  const name = id === D.oos_best && !SC.has(id) ? `${id}（样本外最佳）` : id === D.champion ? `${id}（总冠军）` : id;
-  const r = el('tr', { tabIndex: 0, onclick: () => select(id) }, [el('td', { textContent: name }), el('td', {}, [el('span', { className: 'dot', style: `background:var(--sp-${a.sp});margin-right:6px` }), SPN[a.sp]]),
-    el('td', { textContent: pct(tr.ret), className: cls(tr.ret) }), el('td', { textContent: pct(tr.dd, false) }), el('td', { textContent: tr.fit.toFixed(2) }),
-    el('td', { textContent: pct(oo.ret), className: cls(oo.ret) }), el('td', { textContent: pct(oo.dd, false) })]);
-  r.addEventListener('keydown', (e) => { if (e.key === 'Enter') select(id); });
-  return r;
+
+// ---------- 账户
+const R = D.replay;
+const BAR = R.bar_hours * 3600e3;
+const T0 = Date.parse(R.start + ':00Z');
+const acc = { si: 0, tf: 6, off: 0, hover: null, cf: 'open', showAll: false };
+const sel = document.getElementById('strat');
+R.strategies.forEach((s, i) => sel.append(new Option(`${s.id} · ${SPN[s.species]}${s.id === D.champion ? '（冠军）' : ''}`, i)));
+sel.addEventListener('change', () => { acc.si = +sel.value; acc.off = 0; acc.hover = null; acc.showAll = false; renderAccount(); });
+document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click', () => {
+  acc.tf = +b.dataset.tf; acc.off = 0; acc.hover = null;
+  document.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x === b)); drawEK();
 }));
+document.querySelectorAll('[data-cf]').forEach((b) => b.addEventListener('click', () => {
+  acc.cf = b.dataset.cf; acc.showAll = false;
+  document.querySelectorAll('[data-cf]').forEach((x) => x.classList.toggle('on', x === b)); renderCoins();
+}));
+document.getElementById('cmore').addEventListener('click', () => { acc.showAll = true; renderCoins(); });
+document.getElementById('sim-note').textContent = `回放：假设策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，用 OKX 永续真实 1 小时 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。真正的实时模拟盘需要一台在线服务器。`;
 
-// 导航高亮
-const links = [...document.querySelectorAll('nav a')];
-const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((l) => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
-['sim', 'rounds', 'lineage', 'detail', 'curve', 'overfit', 'champs'].forEach((id) => io.observe(document.getElementById(id)));
+function bars(tf) {
+  const src = R.strategies[acc.si].ohlc; const out = [];
+  for (let i = 0; i < src.length; i += tf) {
+    const g = src.slice(i, i + tf);
+    out.push({ t: T0 + i * BAR, o: g[0][0], h: d3.max(g, (x) => x[1]), l: d3.min(g, (x) => x[2]), c: g[g.length - 1][3], part: g.length < tf });
+  }
+  return out;
+}
+function renderAccount() {
+  const s = R.strategies[acc.si]; const o = s.ohlc; const last = o[o.length - 1][3];
+  const d24 = last - o[Math.max(0, o.length - 7)][3];
+  const tot = last - R.start_equity;
+  let peak = R.start_equity, dd = 0; o.forEach((b) => { peak = Math.max(peak, b[1]); dd = Math.max(dd, (peak - b[2]) / peak); });
+  document.getElementById('eq').textContent = usd(last);
+  const set = (id, txt, c) => { const e = document.getElementById(id); e.textContent = txt; e.className = 'v ' + (c || ''); };
+  set('k24', `${sUsd(d24)} USDT`, cls(d24));
+  set('ktot', `${sUsd(tot)} USDT`, cls(tot));
+  document.getElementById('ktot-k').textContent = `累计收益 ${pct(tot / R.start_equity * 100)}`;
+  set('kdd', `−${(dd * 100).toFixed(1)}%`, 'bad');
+  drawEK(); renderCoins();
+}
 
-function drawRounds() {
-  const tb = document.getElementById('round-body'); tb.replaceChildren(...D.rounds.map((r) => el('tr', { style: 'cursor:default' }, [
-    el('td', { textContent: r.name }), el('td', { textContent: r.how, style: 'white-space:normal;min-width:150px;color:var(--muted);text-align:left' }),
-    el('td', { textContent: `${r.final_pass} / ${r.final_n}` }), el('td', { textContent: pct(r.final_oos), className: cls(r.final_oos) }),
+let EK = null;
+const ek = document.getElementById('ek');
+function visibleBars(W) { return acc.tf === 42 ? 80 : W < 560 ? 60 : 110; }
+function drawEK() {
+  if (!ek.parentElement.clientWidth) return;
+  EK = setupCanvas(ek, ek.parentElement.clientWidth < 560 ? 280 : 340);
+  const { ctx, W, H } = EK;
+  const B = bars(acc.tf); const n = visibleBars(W);
+  acc.off = Math.max(0, Math.min(acc.off, Math.max(0, B.length - n)));
+  const i1 = B.length - 1 - acc.off; const i0 = Math.max(0, i1 - n + 1);
+  const padR = 64, padB = 22, padT = 8; const bw = (W - padR) / n;
+  const x = (i) => (i - (i1 - n + 1) + 0.5) * bw;
+  const vis = B.slice(i0, i1 + 1);
+  let lo = d3.min(vis, (b) => b.l), hi = d3.max(vis, (b) => b.h);
+  if (R.start_equity > lo - (hi - lo) * 0.3 && R.start_equity < hi + (hi - lo) * 0.3) { lo = Math.min(lo, R.start_equity); hi = Math.max(hi, R.start_equity); }
+  const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const c = { good: css('--good'), bad: css('--bad'), grid: css('--grid'), muted: css('--muted'), fg: css('--fg') };
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
+  const ticks = d3.scaleLinear().domain([lo, hi]).ticks(5); const tf = d3.format(hi - lo < 20 ? ',.1f' : ',.0f');
+  ticks.forEach((v) => { const yy = y(v); ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - padR, yy); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(tf(v), W - padR + 8, yy); });
+  // 本金线
+  const by = y(R.start_equity);
+  if (by > padT && by < H - padB) { ctx.strokeStyle = c.muted; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(W - padR, by); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = c.muted; ctx.fillText('本金', 4, by - 8); }
+  ctx.textBaseline = 'alphabetic';
+  // 时间刻度
+  const fmt = acc.tf === 1 ? d3.utcFormat('%m-%d %H时') : acc.tf === 6 ? d3.utcFormat('%m-%d') : d3.utcFormat('%y-%m-%d');
+  [0.1, 0.5, 0.9].forEach((f) => { const i = Math.round(i1 - n + 1 + f * (n - 1)); if (i < i0) return; ctx.fillStyle = c.muted; ctx.textAlign = 'center'; ctx.fillText(fmt(new Date(B[i].t)), x(i), H - 6); });
+  ctx.textAlign = 'left';
+  const body = Math.max(1, bw * 0.64);
+  for (let i = i0; i <= i1; i++) {
+    const b = B[i]; const col = b.c >= b.o ? c.good : c.bad; const xx = x(i);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xx, y(b.h)); ctx.lineTo(xx, y(b.l)); ctx.stroke();
+    const y1 = y(Math.max(b.o, b.c)), y2 = y(Math.min(b.o, b.c));
+    ctx.fillStyle = col; ctx.fillRect(xx - body / 2, y1, body, Math.max(1, y2 - y1));
+  }
+  // 最新值标签
+  const lb = B[i1]; const ly = y(lb.c); const lc = lb.c >= lb.o ? c.good : c.bad;
+  ctx.fillStyle = lc; ctx.fillRect(W - padR + 2, ly - 9, padR - 2, 18);
+  ctx.fillStyle = '#fff'; ctx.font = `600 11px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillText(d3.format(',.2f')(lb.c), W - padR + 6, ly); ctx.textBaseline = 'alphabetic';
+  // 十字线
+  const hi_ = acc.hover !== null && acc.hover >= i0 && acc.hover <= i1 ? acc.hover : null;
+  if (hi_ !== null) { ctx.strokeStyle = c.muted; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(x(hi_), padT); ctx.lineTo(x(hi_), H - padB); ctx.stroke(); ctx.globalAlpha = 1; }
+  readout(B, hi_ !== null ? hi_ : i1);
+  EK.map = { x0: i1 - n + 1, bw, i0, i1 };
+}
+function readout(B, i) {
+  const b = B[i]; const prev = i > 0 ? B[i - 1].c : R.start_equity; const ch = b.c - prev;
+  const lab = acc.tf === 1 ? d3.utcFormat('%Y-%m-%d %H:%M')(new Date(b.t)) : acc.tf === 6 ? d3.utcFormat('%Y-%m-%d')(new Date(b.t)) : `${d3.utcFormat('%Y-%m-%d')(new Date(b.t))} 当周`;
+  const f = d3.format(',.2f');
+  const box = document.getElementById('readout');
+  box.replaceChildren(el('span', { textContent: lab + (b.part ? '（未完）' : '') }), el('span', {}, ['开 ', el('b', { textContent: f(b.o) })]), el('span', {}, ['高 ', el('b', { textContent: f(b.h) })]),
+    el('span', {}, ['低 ', el('b', { textContent: f(b.l) })]), el('span', {}, ['收 ', el('b', { textContent: f(b.c) })]), el('span', { className: cls(ch), textContent: `${sUsd(ch)} USDT` }));
+}
+(() => {
+  let x0 = null, off0 = 0, moved = false;
+  const idxAt = (cx) => { const r = ek.getBoundingClientRect(); return Math.round((cx - r.left) / EK.map.bw - 0.5 + EK.map.x0); };
+  ek.addEventListener('pointerdown', (e) => { x0 = e.clientX; off0 = acc.off; moved = false; ek.setPointerCapture(e.pointerId); });
+  ek.addEventListener('pointermove', (e) => {
+    if (!EK) return;
+    if (x0 !== null && Math.abs(e.clientX - x0) > 6) { moved = true; acc.off = Math.max(0, Math.round(off0 + (e.clientX - x0) / EK.map.bw)); acc.hover = null; drawEK(); return; }
+    if (x0 === null && e.pointerType === 'mouse') { acc.hover = idxAt(e.clientX); drawEK(); }
+  });
+  ek.addEventListener('pointerup', (e) => { if (!moved && EK) { acc.hover = idxAt(e.clientX); drawEK(); } x0 = null; });
+  ek.addEventListener('pointercancel', () => { x0 = null; });
+  ek.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { acc.hover = null; drawEK(); } });
+})();
+
+function renderCoins() {
+  const s = R.strategies[acc.si];
+  const openCoins = s.coins.filter((c) => c.pos);
+  const fl = d3.sum(openCoins, (c) => c.pos.float); const rz = d3.sum(s.coins, (c) => c.realized);
+  const notional = d3.sum(openCoins, (c) => c.pos.notional);
+  const sum = document.getElementById('csum');
+  const it = (k, v, c) => el('span', {}, [k + ' ', el('b', { textContent: v, className: c || '' })]);
+  sum.replaceChildren(it('持仓', `${openCoins.length} 个币`), it('仓位合计', `${usd(notional)} USDT`), it('浮动', `${sUsd(fl)} USDT`, cls(fl)), it('已实现', `${sUsd(rz)} USDT`, cls(rz)), it('交易过', `${s.coins.length} 个币`));
+  let list = acc.cf === 'open' ? openCoins.slice().sort((a, b) => b.pos.notional - a.pos.notional) : s.coins;
+  const limit = acc.showAll ? list.length : 12;
+  const box = document.getElementById('coins');
+  box.replaceChildren(...(list.length ? list.slice(0, limit).map((c) => {
+    const p = c.pos;
+    const pill = p ? el('span', { className: 'pill ' + (p.side > 0 ? 'long' : 'short'), textContent: p.side > 0 ? '多' : '空' }) : el('span', { className: 'pill flat', textContent: '空仓' });
+    const meta = [];
+    if (p) meta.push(el('span', {}, ['仓位 ', el('b', { textContent: `${usd(p.notional)} USDT` })]), el('span', {}, ['浮动 ', el('b', { textContent: `${sUsd(p.float)} USDT`, className: cls(p.float) })]), el('span', { textContent: `${p.lev.toFixed(1)}x · 开仓 ${d3.format('.6~g')(p.entry)}` }));
+    meta.push(el('span', {}, ['已实现 ', el('b', { textContent: `${sUsd(c.realized)} USDT`, className: cls(c.realized) })]), el('span', { textContent: `${c.n} 笔 · 胜率 ${c.n ? Math.round(c.wins / c.n * 100) : 0}%` }));
+    return el('div', { className: 'coin' }, [el('div', { className: 'name' }, [el('span', { className: 'pair', textContent: c.pair }), pill]),
+      el('div', { className: 'total ' + cls(c.total), textContent: `${sUsd(c.total)}` }), el('div', { className: 'meta' }, meta)]);
+  }) : [el('p', { className: 'sub', textContent: '当前没有持仓' })]));
+  const more = document.getElementById('cmore');
+  more.hidden = list.length <= limit; more.textContent = `显示全部 ${list.length} 个币`;
+}
+
+// ---------- 进化页
+const passN = ALL.filter((x) => x.pass).length;
+const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
+document.getElementById('evo-intro').textContent = `遗传算法在 4 个策略物种里进化了 ${GENS} 代，每个策略都在 OKX 前 100 热门币上回测。训练期 ${D.meta.train[0]} ~ ${D.meta.train[1]}，只按训练期的稳健得分选择。`;
+const stat = (k, v) => el('div', {}, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v', textContent: v })]);
+document.getElementById('stats').append(stat('个体', ALL.length.toLocaleString()), stat('冠军得分', M(champ.tr).fit.toFixed(2)), stat('样本外合格', `${finalPass}/${D.final_population.length}`));
+const legend = document.getElementById('sp-legend');
+SP.forEach((sp) => legend.append(el('li', {}, [el('span', { className: 'dot', style: `background:var(--sp-${sp})` }), SPN[sp]])));
+legend.append(el('li', {}, [el('span', { className: 'ringdot' }), '当过冠军']));
+
+function select(id, fromOther = false) {
+  selected = id;
+  if (location.hash !== '#evolution') { location.hash = '#evolution'; } else { drawLineage(); }
+  renderDetail();
+  if (fromOther) requestAnimationFrame(() => document.getElementById('detail').scrollIntoView({ block: 'start' }));
+}
+function renderDetail() {
+  const a = I.get(selected); const tr = M(a.tr), oo = M(a.oo);
+  const box = document.getElementById('detail'); box.replaceChildren();
+  const badges = [];
+  if (a.id === D.champion) badges.push(el('span', { className: 'badge champ', textContent: '总冠军' }));
+  else if (SC.has(a.id)) badges.push(el('span', { className: 'badge champ', textContent: '物种冠军' }));
+  badges.push(el('span', { className: 'badge ' + (a.pass ? 'pass' : 'fail'), textContent: a.pass ? '样本外合格' : '样本外不合格' }));
+  box.append(el('div', { className: 'detail-head' }, [el('span', { className: 'dot', style: `background:var(--sp-${a.sp});width:12px;height:12px` }), el('span', { className: 'name', textContent: `${SPN[a.sp]} · ${a.id}` }), ...badges]));
+  box.append(el('p', { className: 'genes', textContent: a.desc.replace(SPN[a.sp] + ' · ', '') }));
+  const origin = el('p', { className: 'origin' });
+  origin.append(`第 ${a.gen} 代 · ${a.origin} · 父代 `);
+  if (a.parents.length) a.parents.forEach((p, i) => { if (i) origin.append('、'); origin.append(el('button', { type: 'button', textContent: p, onclick: () => select(p) })); });
+  else origin.append('无');
+  origin.append(FINAL.has(a.id) ? ' · 存活至今' : ` · 存活到第 ${a.until} 代`);
+  box.append(origin);
+  const row = (k, v1, v2, c1 = '', c2 = '') => el('tr', {}, [el('td', { textContent: k }), el('td', { textContent: v1, className: c1 }), el('td', { textContent: v2, className: c2 })]);
+  box.append(el('table', { className: 'mt' }, [el('thead', {}, [el('tr', {}, [el('th'), el('th', { textContent: '训练期' }), el('th', { textContent: '样本外' })])]), el('tbody', {}, [
+    row('收益', pct(tr.ret), pct(oo.ret), cls(tr.ret), cls(oo.ret)), row('最大回撤', pct(tr.dd, false), pct(oo.dd, false)),
+    row('交易次数', tr.trades.toLocaleString(), oo.trades.toLocaleString()), row('胜率', pct(tr.win, false), pct(oo.win, false)), row('盈亏比', tr.pf.toFixed(2), oo.pf.toFixed(2))])]));
+  if (a.folds) {
+    const fb = el('div', { className: 'folds' }); const mx = Math.max(5, ...a.folds.map(Math.abs));
+    a.folds.forEach((v, k) => fb.append(el('div', { className: 'fold' }, [el('div', { className: 'fbar' }, [el('span', { className: v >= 0 ? 'up' : 'dn', style: `height:${Math.max(2, Math.abs(v) / mx * 32)}px` })]), el('div', { className: 'fv ' + cls(v), textContent: pct(v) }), el('div', { className: 'fk', textContent: D.meta.folds[k][0].slice(2, 7) })])));
+    box.append(el('p', { className: 'sub', textContent: `训练期 6 段分别回测：${a.folds.filter((v) => v > 0).length} 段赚钱` }), fb);
+  }
+}
+
+// ---------- 验证页
+document.getElementById('verdict').textContent = `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}），是四轮里第一次训练好、样本外也赚钱。但优势很薄（样本外盈亏比 ${M(champ.oo).pf.toFixed(2)}），回测是简化版，样本外也已经看过四次，先不要投入真钱，下一步用实时模拟盘检验。`;
+const okInds = ALL.filter((a) => M(a.tr).trades >= 30);
+const rank = (arr) => { const idx = arr.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]); const r = new Array(arr.length); idx.forEach(([, i], k) => { r[i] = k; }); return r; };
+const rx = rank(okInds.map((a) => M(a.tr).fit)), ry = rank(okInds.map((a) => M(a.oo).ret));
+const rho = d3.mean(rx.map((v, i) => v * ry[i])) - d3.mean(rx) * d3.mean(ry); const rhoN = rho / (d3.deviation(rx) * d3.deviation(ry)) * (okInds.length - 1) / okInds.length;
+document.getElementById('overfit-sub').textContent = `每个点是一个策略：横轴是训练期得分，纵轴是样本外收益。两者的等级相关系数是 ${rhoN.toFixed(2)}（前 3 轮都是负数），说明这一轮训练分高的策略在样本外也倾向更好。点一个点可以查看它。`;
+function drawRoundsNew() {
+  const tb = document.getElementById('round-body');
+  tb.replaceChildren(...D.rounds.map((r) => el('tr', {}, [el('td', { textContent: r.name }), el('td', { textContent: r.how }), el('td', { textContent: `${r.final_pass}/${r.final_n}` }),
     el('td', { textContent: pct(r.top_oos), className: cls(r.top_oos) }), el('td', { textContent: `${pct(r.champ_train)} → ${pct(r.champ_oos)}` })])));
   const box = document.getElementById('c-rounds'); box.replaceChildren();
-  const W = Math.max(280, box.clientWidth), H = 190;
-  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各轮的样本外平均收益对比');
-  const keys = [['final_oos', '最后一代样本外平均'], ['top_oos', '训练前 100 名样本外平均']];
-  const y = d3.scaleLinear().domain([Math.min(-5, d3.min(D.rounds, (r) => Math.min(r.final_oos, r.top_oos)) * 1.15), Math.max(5, d3.max(D.rounds, (r) => Math.max(r.final_oos, r.top_oos)) * 1.25)]).nice();
-  const m = { t: 8, r: 8, b: 40, l: textW(svg, y.ticks(4).map((t) => t + '%')) + 8 };
+  const W = Math.max(280, box.clientWidth), H = 170;
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各轮训练前 100 名的样本外平均收益');
+  const vals = D.rounds.map((r) => r.top_oos);
+  const y = d3.scaleLinear().domain([Math.min(0, d3.min(vals)) * 1.2, Math.max(0, d3.max(vals)) * 1.3 || 1]).nice();
+  const m = { t: 16, r: 8, b: 24, l: 8 };
   y.range([H - m.b, m.t]);
-  const x0 = d3.scaleBand().domain(D.rounds.map((r) => r.name)).range([m.l, W - m.r]).padding(0.25);
-  const x1 = d3.scaleBand().domain(keys.map((k) => k[0])).range([0, x0.bandwidth()]).padding(0.12);
-  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat((d) => d + '%').tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
-  svg.append('g').attr('transform', `translate(0,${H - m.b + 4})`).call(d3.axisBottom(x0).tickSize(0).tickPadding(6)).call(axisStyle);
-  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--muted'));
-  const colors = [css('--bad'), css('--muted')];
-  // 正值柱子用绿色
-  const g = svg.append('g').selectAll('g').data(D.rounds).join('g').attr('transform', (r) => `translate(${x0(r.name)},0)`);
-  keys.forEach(([k], i) => {
-    g.append('rect').attr('x', x1(k)).attr('width', x1.bandwidth()).attr('y', (r) => Math.min(y(r[k]), y(0))).attr('height', (r) => Math.abs(y(r[k]) - y(0))).attr('fill', (r) => (r[k] >= 0 ? css('--good') : colors[i])).attr('fill-opacity', i ? 0.55 : 0.85).attr('rx', 2);
-    g.append('text').attr('x', x1(k) + x1.bandwidth() / 2).attr('y', (r) => (r[k] >= 0 ? y(r[k]) - 4 : y(r[k]) + 13)).attr('text-anchor', 'middle').attr('fill', css('--fg')).text((r) => (r[k] > 0 ? '+' : '') + r[k].toFixed(1));
-  });
-  const lg = svg.append('g').attr('transform', `translate(${m.l},${H - 6})`);
-  keys.forEach(([k, label], i) => { const xx = i * Math.min(170, (W - m.l) / 2); lg.append('rect').attr('x', xx).attr('y', -9).attr('width', 10).attr('height', 10).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85); lg.append('text').attr('x', xx + 14).text(label); });
+  const x = d3.scaleBand().domain(D.rounds.map((r) => r.name)).range([m.l, W - m.r]).padding(0.35);
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--line'));
+  const g = svg.append('g').selectAll('g').data(D.rounds).join('g');
+  g.append('rect').attr('x', (r) => x(r.name)).attr('width', x.bandwidth()).attr('y', (r) => Math.min(y(r.top_oos), y(0))).attr('height', (r) => Math.abs(y(r.top_oos) - y(0))).attr('rx', 3).attr('fill', (r) => (r.top_oos >= 0 ? css('--good') : css('--bad'))).attr('fill-opacity', 0.85);
+  g.append('text').attr('x', (r) => x(r.name) + x.bandwidth() / 2).attr('y', (r) => (r.top_oos >= 0 ? y(r.top_oos) - 5 : y(r.top_oos) + 13)).attr('text-anchor', 'middle').attr('fill', css('--fg')).style('font-weight', 600).text((r) => pct(r.top_oos));
+  g.append('text').attr('x', (r) => x(r.name) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').text((r) => r.name);
 }
 
-function drawAll() { simSetup(); simRender(true); drawRounds(); drawLineage(); renderDetail(); drawCurve(); drawScatter(); }
-drawAll();
+// ---------- 页面切换
+const VIEWS = ['account', 'evolution', 'validation'];
+function show() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'account';
+  VIEWS.forEach((k) => { document.getElementById('v-' + k).hidden = k !== v; });
+  document.querySelectorAll('.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.view === v));
+  requestAnimationFrame(() => {
+    if (v === 'account') renderAccount();
+    if (v === 'evolution') { drawLineage(); renderDetail(); }
+    if (v === 'validation') { drawRoundsNew(); drawScatter(); }
+  });
+}
+addEventListener('hashchange', show);
+show();
 let rt, lastW = innerWidth;
-addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(drawAll, 150); });
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
-new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(show, 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show);
+new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 </script>
