@@ -26,7 +26,8 @@ def main():
     rounds = []
     labels = {"results_r1.json": ("第 1 轮", "单段训练 2024-02 起"),
               "results_r2.json": ("第 2 轮", "+ 滚动窗口、参数邻居、成本加压"),
-              Path(args.results).name: ("第 3 轮", "+ 训练期拉长到 2021-02 起")}
+              "results_r3.json": ("第 3 轮", "+ 训练期拉长到 2021-02 起"),
+              Path(args.results).name: ("第 4 轮", "+ 币种扩展到成交额前 100")}
     for fn, (name, how) in labels.items():
         f = HERE / fn
         if not f.exists():
@@ -50,7 +51,8 @@ def main():
             st["trades"] = [[t["pair"], t["side"], t["te"], t["tx"], t["entry"], t["exit"], t["pnl"], t["lev"],
                              t["stop"], t["tp"], t["ki"], t["kx"]] for t in st["trades"]]
         replay = rj
-    page = {"meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
+    uni = json.loads((HERE / "universe.json").read_text()) if (HERE / "universe.json").exists() else None
+    page = {"universe": uni, "meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
             "oos_best": d["oos_best"], "final_population": d["final_population"], "history": d["history"],
             "inds": inds, "curves": curves, "trades": trades, "rounds": rounds, "replay": replay}
     blob = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")

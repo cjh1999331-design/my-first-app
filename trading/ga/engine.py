@@ -23,7 +23,15 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "user_data" / "data" / "okx" / "futures"
-PAIRS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+UNIVERSE = Path(__file__).resolve().parent / "universe.json"
+
+
+def default_pairs() -> list[str]:
+    """优先用 universe.json（OKX 成交额前 100），否则用最初的 5 个币。"""
+    if UNIVERSE.exists():
+        import json
+        return [c["base"] for c in json.loads(UNIVERSE.read_text())["coins"]]
+    return ["BTC", "ETH", "SOL", "BNB", "XRP"]
 
 FEE = 0.0005          # 单边手续费
 FUNDING_PER_H = 0.0001 / 8
@@ -55,10 +63,15 @@ def _ema(x: np.ndarray, n: int) -> np.ndarray:
     return pd.Series(x).ewm(span=n, adjust=False).mean().to_numpy()
 
 
-def load_data() -> list[PairData]:
+def load_data(pairs: list[str] | None = None) -> list[PairData]:
     out = []
-    for p in PAIRS:
-        df = pd.read_feather(DATA_DIR / f"{p}_USDT_USDT-1h-futures.feather").sort_values("date")
+    for p in pairs or default_pairs():
+        f = DATA_DIR / f"{p}_USDT_USDT-1h-futures.feather"
+        if not f.exists():
+            continue
+        df = pd.read_feather(f).sort_values("date")
+        if len(df) < 500:
+            continue
         o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
         prev_c = np.concatenate([[c[0]], c[:-1]])
         tr = np.maximum(h - l, np.maximum(abs(h - prev_c), abs(l - prev_c)))
@@ -104,7 +117,7 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
         big = (d.h - d.l) > g["k"] * atr_prev
         long_, short_ = big & (c > o), big & (c < o)
     elif sp == "ma_cross":
-        f, s = ema(d, g["fast"]), ema(d, g["slow"])
+        f, s = _ema(d.c, g["fast"]), _ema(d.c, g["slow"])
         above = f > s
         prev = np.concatenate([[False], above[:-1]])
         long_, short_ = above & ~prev, ~above & prev
@@ -114,7 +127,9 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
         long_ = (r > g["lo"]) & (rp <= g["lo"])
         short_ = (r < g["hi"]) & (rp >= g["hi"])
     elif sp == "channel":
-        hh, ll = donchian(d, g["n"])
+        n = g["n"]
+        hh = pd.Series(d.h).rolling(n).max().shift(1).to_numpy()
+        ll = pd.Series(d.l).rolling(n).min().shift(1).to_numpy()
         long_, short_ = c > hh, c < ll
     else:
         raise ValueError(sp)
@@ -130,16 +145,22 @@ def signals(g: dict, d: PairData) -> tuple[np.ndarray, np.ndarray]:
 
 
 # ------------------------------------------------------------------ 回测
+def all_signals(g: dict, data: list[PairData]) -> list:
+    return [signals(g, d) for d in data]
+
+
 def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64,
-             want_trades: bool = False, fee: float = FEE, min_trades: int = 30) -> dict:
-    eq0 = START_EQUITY / len(data)
-    exits_t, exits_pnl, trades = [], [], []
-    for d in data:
+             want_trades: bool = False, fee: float = FEE, min_trades: int = 30, sigs: list | None = None) -> dict:
+    windows = []
+    for idx, d in enumerate(data):
         i0 = int(np.searchsorted(d.t, t0))
         i1 = int(np.searchsorted(d.t, t1))
-        if i1 - i0 < 300:
-            continue
-        L, S = signals(g, d)
+        if i1 - i0 >= 300:
+            windows.append((idx, d, i0, i1))
+    eq0 = START_EQUITY / max(1, len(windows))
+    exits_t, exits_pnl, trades = [], [], []
+    for idx, d, i0, i1 in windows:
+        L, S = sigs[idx] if sigs is not None else signals(g, d)
         sig_idx = np.flatnonzero((L | S)[i0:i1 - 1]) + i0
         o, h, l, c, atr = d.o, d.h, d.l, d.c, d.atr
         E = eq0

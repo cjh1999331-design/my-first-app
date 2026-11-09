@@ -19,7 +19,30 @@ from pathlib import Path
 
 import numpy as np
 
-from engine import SPECIES, backtest, daily_equity, load_data
+from multiprocessing import Pool
+
+from engine import SPECIES, all_signals, backtest, daily_equity, load_data
+
+W = {}  # 子进程共享的数据（fork 时继承）
+
+
+def evaluate(job):
+    genes, neighbors = job
+    w = W
+    data = w["data"]
+    sigs = all_signals(genes, data)
+    tr = backtest(genes, data, w["tr0"], w["tr1"], sigs=sigs)
+    oo = backtest(genes, data, w["oo0"], w["oo1"], sigs=sigs)
+    strip = lambda m: {k: v for k, v in m.items() if not k.startswith("_")}
+    train, extra = strip(tr), {}
+    if w["mode"] == "robust":
+        base, rets = robust_eval(genes, data, w["folds"], w["fee"], sigs)
+        nb = [robust_eval(n, data, w["folds"], w["fee"])[0] for n in neighbors]
+        score = 0.5 * base + 0.5 * min(nb) if nb else base
+        train["calmar"] = train["fit"]
+        train["fit"] = round(score, 3)
+        extra = {"folds": rets, "fold_score": round(base, 3), "neighbor_min": round(min(nb), 3) if nb else None}
+    return train, strip(oo), extra
 
 TRAIN = ("2024-02-01", "2025-06-01")
 OOS = ("2025-06-01", "2026-11-01")
@@ -109,11 +132,12 @@ def fold_score(m: dict) -> float:
     return float(np.clip(m["fit"], -3, 3))
 
 
-def robust_eval(genes, data, folds, stress_fee):
+def robust_eval(genes, data, folds, stress_fee, sigs=None):
     """在每个时间段分别回测（加压手续费），返回 (得分, 各段收益%)。"""
+    sigs = sigs if sigs is not None else all_signals(genes, data)
     scores, rets, trades = [], [], 0
     for f0, f1 in folds:
-        m = backtest(genes, data, f0, f1, fee=stress_fee, min_trades=8)
+        m = backtest(genes, data, f0, f1, fee=stress_fee, min_trades=8, sigs=sigs)
         scores.append(fold_score(m))
         rets.append(m["ret"])
         trades += m["trades"]
@@ -148,6 +172,7 @@ def main():
     ap.add_argument("--train-start", default="2021-02-01", help="训练起点；结束点固定为样本外起点")
     ap.add_argument("--neighbors", type=int, default=2)
     ap.add_argument("--stress-fee", type=float, default=0.0008)
+    ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
     global TRAIN
     TRAIN = (args.train_start, OOS[0])
@@ -163,31 +188,30 @@ def main():
     counter = {sp: 0 for sp in SPECIES}
     short = {"vol_breakout": "v", "ma_cross": "m", "rsi_revert": "r", "channel": "c"}
 
+    W.update(data=data, tr0=tr0, tr1=tr1, oo0=oo0, oo1=oo1, folds=folds, fee=args.stress_fee, mode=args.mode)
+    pool = Pool(args.workers)
+    pending = []
+
     def make(genes, gen, origin, parents):
         sp = genes["species"]
         iid = f"{short[sp]}{counter[sp]}"
         counter[sp] += 1
-        tr = backtest(genes, data, tr0, tr1)
-        oo = backtest(genes, data, oo0, oo1)
-        strip = lambda m: {k: v for k, v in m.items() if not k.startswith("_")}
-        train = strip(tr)
-        extra = {}
-        if args.mode == "robust":
-            base, rets = robust_eval(genes, data, folds, args.stress_fee)
-            nb = [robust_eval(neighbor(genes), data, folds, args.stress_fee)[0] for _ in range(args.neighbors)]
-            score = 0.5 * base + 0.5 * min(nb) if nb else base
-            train["calmar"] = train["fit"]
-            train["fit"] = round(score, 3)
-            extra = {"folds": rets, "fold_score": round(base, 3), "neighbor_min": round(min(nb), 3) if nb else None}
         ind = {"id": iid, "species": sp, "gen": gen, "origin": origin, "parents": parents,
-               "genes": genes, "desc": describe(genes), "train": train, "oos": strip(oo),
-               "alive_until": gen, "champ_gens": [], **extra}
-        ind["oos_pass"] = oo["ret"] > 0 and oo["dd"] < 30 and oo["trades"] >= 10
+               "genes": genes, "desc": describe(genes), "alive_until": gen, "champ_gens": []}
         inds[iid] = ind
+        pending.append((ind, [neighbor(genes) for _ in range(args.neighbors)] if args.mode == "robust" else []))
         return ind
+
+    def flush():
+        res = pool.map(evaluate, [(ind["genes"], nb) for ind, nb in pending], chunksize=1)
+        for (ind, _), (train, oos, extra) in zip(pending, res):
+            ind.update(train=train, oos=oos, **extra)
+            ind["oos_pass"] = oos["ret"] > 0 and oos["dd"] < 30 and oos["trades"] >= 10
+        pending.clear()
 
     t_start = time.time()
     pop = {sp: [make(random_genes(sp), 0, "初始随机", []) for _ in range(args.per_species)] for sp in SPECIES}
+    flush()
     history = []
 
     def record(gen):
@@ -223,6 +247,7 @@ def main():
                     child = make(random_genes(sp), gen, "随机移民", [])
                 nxt.append(child)
             pop[sp] = nxt
+        flush()
         record(gen)
         best = max((m for ms in pop.values() for m in ms), key=lambda x: x["train"]["fit"])
         print(f"gen {gen:>3}  best {best['id']:<6} fit={best['train']['fit']:<7} "

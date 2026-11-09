@@ -136,6 +136,13 @@
   .rows .r.new { animation: flash 1.2s ease-out; }
   @keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
   @media (prefers-reduced-motion: reduce) { .rows .r.new { animation: none; } }
+  .pairbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pairsel { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); max-width: 100%; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
+  #kc { cursor: grab; touch-action: pan-y; }
+  #kc.drag { cursor: grabbing; }
+  .rows .r.click { cursor: pointer; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 
@@ -155,7 +162,7 @@
     <nav aria-label="页面导航">
       <a href="#sim" class="on">模拟盘</a>
       <a href="#lineage">基因池</a>
-      <a href="#rounds">三轮对比</a>
+      <a href="#rounds">轮次对比</a>
       <a href="#detail">个体详情</a>
       <a href="#curve">进化曲线</a>
       <a href="#overfit">过拟合检验</a>
@@ -175,16 +182,14 @@
       <div><div class="k">累计</div><div class="mid" id="acc-tot">—</div></div>
       <div><div class="k">持仓 / 已平仓</div><div class="mid" id="acc-pos">—</div></div>
     </div>
-    <div class="controls">
-      <button class="btn primary" id="sim-play" type="button" aria-label="播放回放">▶ 播放</button>
-      <div class="seg" role="group" aria-label="播放速度">
-        <button class="btn" data-speed="3" type="button">1×</button><button class="btn on" data-speed="12" type="button">4×</button><button class="btn" data-speed="48" type="button">16×</button>
-      </div>
+    <div class="pairbar">
+      <label class="sr" for="pair-sel">选择币种</label>
+      <select id="pair-sel" class="pairsel"></select>
       <span class="when" id="sim-time"></span>
     </div>
-    <input type="range" id="sim-scrub" min="0" value="0" step="1" aria-label="回放进度">
-    <div class="ptabs" id="pair-tabs" role="tablist" aria-label="选择币种"></div>
-    <div class="plotbox dark"><canvas id="kc" role="img" aria-label="4 小时 K 线，标出开仓、平仓、止损和止盈"></canvas></div>
+    <div class="ptabs" id="pair-tabs" aria-label="常看币种"></div>
+    <div class="plotbox dark"><canvas id="kc" role="img" aria-label="4 小时 K 线，标出开仓、平仓、止损和止盈，左右拖动查看更早的行情"></canvas></div>
+    <p class="hint">K 线可以左右拖动查看最近 90 天；按 OKX 24 小时成交额排序的前 100 个币都能选。</p>
     <ul class="legend"><li><span class="tri up"></span>开多</li><li><span class="tri dn"></span>开空</li><li><span class="dot" style="background:var(--good)"></span>盈利平仓</li><li><span class="dot" style="background:var(--bad)"></span>亏损平仓</li><li><span class="sw" style="background:var(--good)"></span>止盈</li><li><span class="sw" style="background:var(--bad)"></span>止损</li></ul>
     <div class="plotbox"><canvas id="ec" role="img" aria-label="模拟盘资金曲线"></canvas></div>
     <div class="lists">
@@ -200,7 +205,7 @@
 
   <section class="card" id="rounds">
     <h2>三轮对比：过拟合减轻了，但还没找到真优势</h2>
-    <p class="sub">每一轮都是 70 代、2280 个个体，样本外区间相同（2025-06-01 ~ 2026-11-01）。样本外只用来检验，从没参与选择。</p>
+    <p class="sub">每一轮的样本外区间相同（2025-06-01 起）。样本外只用来检验，从没参与选择。第 1~3 轮只用 BTC、ETH、SOL、BNB、XRP 五个币，第 4 轮扩展到成交额前 100。</p>
     <div class="scroll"><table class="champs"><thead><tr><th>轮次</th><th style="text-align:left">方法</th><th>最后一代样本外合格</th><th>最后一代样本外平均</th><th>训练前 100 名样本外平均</th><th>冠军 训练 → 样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
     <div class="chart" id="c-rounds"></div>
   </section>
@@ -208,7 +213,7 @@
   <section class="card" id="lineage">
     <h2>基因池 · 策略谱系</h2>
     <p class="sub">每个点是一个策略。颜色是物种，点越大训练期稳健得分越高，带环的当过物种冠军，实心不透明的是最后一代还活着的个体。连线是父代到子代。点一下查看它的基因和回测，它的祖先链会高亮。</p>
-    <div class="controls"><button class="btn primary" id="evo-play" type="button">▶ 播放进化</button><span class="when" id="evo-gen"></span></div>
+    <div class="controls"><span class="when" id="evo-gen"></span></div>
     <ul class="legend" id="sp-legend"></ul>
     <div class="plotbox"><canvas id="cv" role="img" aria-label="策略谱系图：横轴是代数，纵向按物种分区，区内越靠上训练期稳健得分越高"></canvas></div>
   </section>
@@ -235,7 +240,8 @@
     <details>
       <summary>回测方法和局限</summary>
       <ul>
-        <li>数据：OKX USDT 永续 1 小时 K 线，BTC ETH SOL BNB XRP，每个币对分 1/5 资金独立运行。</li>
+        <li>币种：OKX USDT 永续 24 小时成交额前 100 的加密货币（去掉稳定币、股票和大宗商品合约），排名取自数据下载当天。资金按当时已有数据的币平分，每个币独立运行。用今天的热门币回看过去，会偏向“后来火了”的币，这是一种幸存者偏差。</li>
+        <li>数据：1 小时 K 线，2021 年起；很多币上线较晚，没上线前不参与。</li>
         <li>信号在 K 线收盘判断、下一根开盘入场；同一根 K 线同时碰到止损和止盈按止损算。</li>
         <li>每笔风险 = 账户 × 风险基因；名义仓位最高 10 倍杠杆。手续费单边 0.05%，资金费按每 8 小时 0.01% 计。</li>
         <li>稳健得分：训练期切成 6 段，每段单独回测（手续费按 0.08% 加压），每段得分 = 年化收益 ÷ max(回撤, 5%)，截断到 ±3；总分 = 平均 − 0.5×标准差，赚钱段数少于 5 段每少一段扣 1 分；再把参数随机扰动 ±10% 生成 2 个邻居，总分 = 0.5×本体 + 0.5×最差邻居。选择只看训练期。</li>
@@ -268,7 +274,7 @@ const M = (a) => ({ trades: a[0], ret: a[1], dd: a[2], win: a[3], pf: a[4], fit:
 
 // ---------- 头部和摘要
 const champ = I.get(D.champion);
-document.getElementById('meta-line').textContent = `${D.meta.exchange} · ${D.meta.timeframe} · ${GENS} 代`;
+document.getElementById('meta-line').textContent = `${D.meta.exchange} · 前 ${D.universe ? D.universe.coins.length : D.meta.pairs.length} 币 · ${D.meta.timeframe} · ${GENS} 代`;
 const passN = ALL.filter((x) => x.pass).length;
 const finalPass = D.final_population.filter((id) => I.get(id).pass).length;
 const stat = (k, v, f, c = '') => el('div', { className: 'stat' }, [el('div', { className: 'k', textContent: k }), el('div', { className: 'v ' + c, textContent: v }), el('div', { className: 'f', textContent: f })]);
@@ -435,12 +441,6 @@ function requestLineage() {
   if (!linRaf) { linRaf = true; linLast = 0; requestAnimationFrame(lineageLoop); }
 }
 new IntersectionObserver((es) => { linVisible = es[0].isIntersecting; if (linVisible) requestLineage(); }).observe(cv);
-document.getElementById('evo-play').addEventListener('click', () => {
-  if (reduceMotion) { genCursor = GENS; drawLineage(); return; }
-  genCursor = 0; playEvo = { t0: performance.now() };
-  ALL.forEach((a) => { if (a.gen === 0) birthT.set(a.id, performance.now()); });
-  drawLineage();
-});
 cv.addEventListener('click', (ev) => {
   if (!layout) return;
   const r = cv.getBoundingClientRect(); const px = ev.clientX - r.left, py = ev.clientY - r.top;
@@ -449,109 +449,123 @@ cv.addEventListener('click', (ev) => {
   if (best) select(best, false);
 });
 
-// ---------- 模拟盘回放
+// ---------- 模拟盘（回放到最新，静态）
 const R = D.replay;
 const BARMS = R.bar_hours * 3600e3;
 const T0 = Date.parse(R.start + ':00Z');
+const KN = R.n - 1;                 // 最新一根
+const CN = R.cn;                    // 页面里保存的 K 线根数（最近 90 天）
+const C0 = R.n - CN;                // 第一根保存的 K 线在全期中的序号
+const CANDLES = {};
+Object.entries(R.candles).forEach(([p, c]) => {
+  const f = Math.pow(10, -c.e); const arr = new Array(CN).fill(null);
+  for (let i = 0; i < c.d.length / 4; i++) arr[c.off + i] = [c.d[i * 4] * f, c.d[i * 4 + 1] * f, c.d[i * 4 + 2] * f, c.d[i * 4 + 3] * f];
+  CANDLES[p] = arr;
+});
+const candleAt = (p, k) => (CANDLES[p] && k >= C0 ? CANDLES[p][k - C0] : null);
 const STR = R.strategies.map((s) => ({ ...s, trades: s.trades.map((t) => ({ pair: t[0], side: t[1], te: t[2], tx: t[3], entry: t[4], exit: t[5], pnl: t[6], lev: t[7], stop: t[8], tp: t[9], ki: t[10], kx: t[11] })) }));
-const sim = { si: 0, pair: (STR[0].trades[STR[0].trades.length - 1] || { pair: 'BTC' }).pair, k: R.n - 1, playing: false, speed: 12, last: 0, partsK: [], partsE: [], newIds: new Set() };
+const RANK = new Map((D.universe?.coins || []).map((c) => [c.base, c]));
+const sim = { si: 0, pair: null, off: 0 };
 const fmtBar = (k) => d3.utcFormat('%Y-%m-%d %H:%M')(new Date(T0 + (Math.floor(k) + 1) * BARMS)) + ' UTC';
-const fmtPx = (v) => d3.format(v >= 10000 ? ',.0f' : v >= 1000 ? ',.1f' : v >= 10 ? ',.2f' : ',.4f')(v);
+const fmtPx = (v) => d3.format(v >= 10000 ? ',.0f' : v >= 1000 ? ',.1f' : v >= 10 ? ',.2f' : v >= 0.1 ? ',.4f' : '.3~e')(v);
 const usd = (v) => d3.format(',.2f')(v);
 const sgnUsd = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + d3.format(',.2f')(Math.abs(v));
-document.getElementById('sim-sub').textContent = `假设进化选出的策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，用 OKX 永续真实 K 线逐根回放到 ${R.end.slice(0, 10)}。没有真实下单，网页也连不上交易所；真正的模拟盘需要一台在线服务器。`;
+document.getElementById('sim-sub').textContent = `假设进化选出的策略在训练期结束（${R.start.slice(0, 10)}）当天上线，初始 ${R.start_equity} USDT，资金按当时已上线的热门币平分，用 OKX 永续真实 K 线一直跑到 ${R.end.slice(0, 10)}。没有真实下单；真正的模拟盘需要一台在线服务器。`;
+document.getElementById('sim-time').textContent = `截至 ${fmtBar(KN)}`;
+
+function openAt(s, k) { return s.trades.filter((t) => t.ki <= k && k < t.kx); }
+function closedBy(s, k) { return s.trades.filter((t) => t.kx <= k); }
+function tradeCount(s) { const m = new Map(); s.trades.forEach((t) => m.set(t.pair, (m.get(t.pair) || 0) + 1)); return m; }
 
 // 策略切换
 const chips = document.getElementById('strat-chips');
 STR.forEach((s, i) => {
-  const b = el('button', { className: 'chip' + (i === 0 ? ' on' : ''), type: 'button', role: 'tab' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${s.id} · ${SPN[s.species]}${s.id === D.champion ? ' · 冠军' : ''}`]);
-  b.addEventListener('click', () => { sim.si = i; chips.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === i)); sim.partsK = []; sim.partsE = []; simRender(true); });
+  const b = el('button', { className: 'chip' + (i === 0 ? ' on' : ''), type: 'button' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${s.id} · ${SPN[s.species]}${s.id === D.champion ? ' · 冠军' : ''}`]);
+  b.addEventListener('click', () => { sim.si = i; chips.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === i)); pickDefaultPair(); simRender(); });
   chips.append(b);
 });
-// 币种
+// 币种：下拉选全部 + 常看标签（持仓中、交易最多）
+const psel = document.getElementById('pair-sel');
 const ptabs = document.getElementById('pair-tabs');
-R.pairs.forEach((p) => {
-  const b = el('button', { className: 'ptab' + (p === sim.pair ? ' on' : ''), type: 'button', role: 'tab' }, [p + '/USDT']);
-  b.dataset.pair = p;
-  b.addEventListener('click', () => { sim.pair = p; ptabs.querySelectorAll('.ptab').forEach((c) => c.classList.toggle('on', c.dataset.pair === p)); sim.partsK = []; simRender(true); });
-  ptabs.append(b);
-});
-requestAnimationFrame(() => { const on = ptabs.querySelector('.ptab.on'); if (on) ptabs.scrollLeft = on.offsetLeft - 16; });
-// 控制
-const playBtn = document.getElementById('sim-play');
-const scrub = document.getElementById('sim-scrub');
-scrub.max = R.n - 1; scrub.value = sim.k;
-function setPlaying(on) {
-  sim.playing = on; playBtn.textContent = on ? '❚❚ 暂停' : '▶ 播放'; playBtn.setAttribute('aria-label', on ? '暂停回放' : '播放回放');
-  if (on) { if (sim.k >= R.n - 1) { sim.k = 0; sim.partsE = []; sim.partsK = []; } simKick(); }
+function pairOptions() {
+  const s = STR[sim.si]; const cnt = tradeCount(s);
+  const list = Object.keys(CANDLES).sort((a, b) => (RANK.get(a)?.rank ?? 999) - (RANK.get(b)?.rank ?? 999));
+  psel.replaceChildren(...list.map((p) => { const o = new Option(`${RANK.get(p)?.rank ?? '–'}. ${p}/USDT${cnt.get(p) ? ` · ${cnt.get(p)} 笔` : ''}`, p); return o; }));
+  psel.value = sim.pair;
+  const open = new Set(openAt(s, KN).map((t) => t.pair));
+  const fav = [...new Set([...open, ...[...cnt.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]), 'BTC', 'ETH'])].filter((p) => CANDLES[p]).slice(0, 8);
+  ptabs.replaceChildren(...fav.map((p) => {
+    const b = el('button', { className: 'ptab' + (p === sim.pair ? ' on' : ''), type: 'button' }, [p]);
+    if (open.has(p)) b.prepend(el('span', { className: 'live' }));
+    b.addEventListener('click', () => setPair(p));
+    return b;
+  }));
 }
-playBtn.addEventListener('click', () => setPlaying(!sim.playing));
-document.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => {
-  sim.speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach((x) => x.classList.toggle('on', x === b));
-}));
-scrub.addEventListener('input', () => { sim.k = +scrub.value; lastK = sim.k; sim.partsK = []; sim.partsE = []; simRender(true); });
+function setPair(p) { sim.pair = p; sim.off = 0; pairOptions(); drawK(); }
+psel.addEventListener('change', () => setPair(psel.value));
+function pickDefaultPair() {
+  const s = STR[sim.si]; const open = openAt(s, KN);
+  const last = open[0] || s.trades[s.trades.length - 1];
+  sim.pair = last && CANDLES[last.pair] ? last.pair : CANDLES.BTC ? 'BTC' : Object.keys(CANDLES)[0];
+  sim.off = 0; pairOptions();
+}
 
 // 画布
 const kc = document.getElementById('kc'), ec = document.getElementById('ec');
 let KC = null, EC = null;
-function simSetup() {
-  const W = kc.parentElement.clientWidth;
-  KC = setupCanvas(kc, W < 560 ? 300 : 380);
-  EC = setupCanvas(ec, W < 560 ? 150 : 180);
-}
-function burst(arr, x, y, color, n) {
-  if (reduceMotion) return;
-  for (let i = 0; i < n; i++) { const a = Math.random() * 6.2832, v = 0.04 + Math.random() * 0.16; arr.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.05, life: 1, r: 1 + Math.random() * 2.2, c: color }); }
-}
-function drawParts(ctx, arr, dt) {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    const p = arr[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.00018 * dt; p.life -= dt / 900;
-    if (p.life <= 0) { arr.splice(i, 1); continue; }
-    ctx.globalAlpha = p.life; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-function openAt(s, k) { return s.trades.filter((t) => t.ki <= k && k < t.kx); }
-function closedBy(s, k) { return s.trades.filter((t) => t.kx <= k); }
+function simSetup() { const W = kc.parentElement.clientWidth; KC = setupCanvas(kc, W < 560 ? 300 : 380); EC = setupCanvas(ec, W < 560 ? 150 : 180); }
+const winBars = () => (KC.W < 560 ? 60 : 110);
+// 拖动平移
+(() => {
+  let x0 = null, off0 = 0;
+  kc.addEventListener('pointerdown', (e) => { x0 = e.clientX; off0 = sim.off; kc.classList.add('drag'); kc.setPointerCapture(e.pointerId); });
+  kc.addEventListener('pointermove', (e) => {
+    if (x0 === null) return;
+    const bw = (KC.W - 62) / winBars();
+    const avail = (CANDLES[sim.pair] || []).filter(Boolean).length;
+    sim.off = Math.max(0, Math.min(Math.max(0, avail - winBars()), Math.round(off0 + (e.clientX - x0) / bw)));
+    drawK();
+  });
+  const end = () => { x0 = null; kc.classList.remove('drag'); };
+  kc.addEventListener('pointerup', end); kc.addEventListener('pointercancel', end);
+})();
 
-function drawK(t, dt) {
-  const { ctx, W, H } = KC; const k1 = Math.floor(sim.k);
-  const cs = R.candles[sim.pair]; const s = STR[sim.si];
-  const win = W < 560 ? 56 : 100; const k0 = Math.max(0, k1 - win + 1);
-  const padR = 62, padB = 22, padT = 12; const bw = (W - padR) / win;
-  const xx = (i) => (i - k0 + 0.5) * bw;
+function drawK() {
+  const { ctx, W, H } = KC; const s = STR[sim.si];
+  const win = winBars(); const k1 = KN - sim.off;
+  const firstK = C0 + (CANDLES[sim.pair] || []).findIndex(Boolean);
+  const k0 = Math.max(firstK, k1 - win + 1);
+  const padR = 62, padB = 22, padT = 22; const bw = (W - padR) / win;
+  const xx = (i) => (i - (k1 - win + 1) + 0.5) * bw;
+  const c = { good: css('--good'), bad: css('--bad'), grid: css('--grid'), muted: css('--muted'), fg: css('--fg'), acc: css('--accent'), panel: css('--panel') };
+  ctx.clearRect(0, 0, W, H);
+  if (!candleAt(sim.pair, k1)) { ctx.fillStyle = c.muted; ctx.font = `13px ${css('--sans')}`; ctx.fillText('这个币没有足够的 K 线数据', 12, 30); return; }
   const trades = s.trades.filter((tr) => tr.pair === sim.pair && tr.ki <= k1 && tr.kx >= k0);
   const open = trades.filter((tr) => k1 < tr.kx);
   let lo = Infinity, hi = -Infinity;
-  for (let i = k0; i <= k1; i++) { lo = Math.min(lo, cs[i][2]); hi = Math.max(hi, cs[i][1]); }
-  open.forEach((tr) => { [tr.stop, tr.tp, tr.entry].forEach((v) => { if (v > lo * 0.85 && v < hi * 1.15) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); });
+  for (let i = k0; i <= k1; i++) { const cd = candleAt(sim.pair, i); if (cd) { lo = Math.min(lo, cd[2]); hi = Math.max(hi, cd[1]); } }
+  open.forEach((tr) => { [tr.stop, tr.tp, tr.entry].forEach((v) => { if (v > lo * 0.8 && v < hi * 1.25) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); });
   const pad = (hi - lo) * 0.08 || hi * 0.01; lo -= pad; hi += pad;
   const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-  const c = { good: css('--good'), bad: css('--bad'), grid: css('--grid'), muted: css('--muted'), fg: css('--fg'), acc: css('--accent'), panel: css('--panel') };
-  ctx.clearRect(0, 0, W, H);
   ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
-  const ticks = d3.scaleLinear().domain([lo, hi]).ticks(5);
-  ticks.forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(fmtPx(v), W - padR + 6, y); });
+  d3.scaleLinear().domain([lo, hi]).ticks(5).forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(fmtPx(v), W - padR + 6, y); });
   ctx.textBaseline = 'alphabetic';
-  [0.1, 0.5, 0.9].forEach((f) => { const i = k0 + Math.floor(f * (Math.min(win, k1 - k0 + 1) - 1)); ctx.fillStyle = c.muted; ctx.textAlign = 'center'; ctx.fillText(d3.utcFormat('%m-%d %H时')(new Date(T0 + i * BARMS)), xx(i), H - 6); });
+  [0.12, 0.5, 0.88].forEach((f) => { const i = Math.round(k1 - win + 1 + f * (win - 1)); if (i < k0) return; ctx.fillStyle = c.muted; ctx.textAlign = 'center'; ctx.fillText(d3.utcFormat('%m-%d %H时')(new Date(T0 + i * BARMS)), xx(i), H - 6); });
   ctx.textAlign = 'left';
-  // K 线
   const body = Math.max(1, bw * 0.62);
   for (let i = k0; i <= k1; i++) {
-    const [o, h, l, cl] = cs[i]; const up = cl >= o; const col = up ? c.good : c.bad; const x = xx(i);
+    const cd = candleAt(sim.pair, i); if (!cd) continue;
+    const [o, h, l, cl] = cd; const col = cl >= o ? c.good : c.bad; const x = xx(i);
     ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yy(h)); ctx.lineTo(x, yy(l)); ctx.stroke();
     const y1 = yy(Math.max(o, cl)), y2 = yy(Math.min(o, cl));
-    ctx.fillStyle = col; ctx.globalAlpha = i === k1 && sim.playing ? 0.75 + 0.25 * Math.sin(t / 120) : 1;
-    ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1)); ctx.globalAlpha = 1;
+    ctx.fillStyle = col; ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1));
   }
-  // 交易
   trades.forEach((tr) => {
     const xe = xx(Math.max(tr.ki, k0)), ye = yy(tr.entry);
     if (tr.kx <= k1) {
       const xq = xx(tr.kx), yq = yy(tr.exit);
       ctx.strokeStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.globalAlpha = 0.7; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(xe, ye); ctx.lineTo(xq, yq); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
       ctx.fillStyle = tr.pnl >= 0 ? c.good : c.bad; ctx.strokeStyle = c.panel; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(xq, yq, 4, 0, 6.2832); ctx.fill(); ctx.stroke();
-      if (sim.newIds.has(tr)) { burst(sim.partsK, xq, yq, tr.pnl >= 0 ? c.good : c.bad, 26); sim.newIds.delete(tr); }
     } else {
       [[tr.entry, c.acc, '开仓', []], [tr.stop, c.bad, '止损', [4, 4]], [tr.tp, c.good, '止盈', [4, 4]]].forEach(([v, col, label, dash]) => {
         const y = yy(v); if (y < padT - 2 || y > H - padB + 2) return;
@@ -560,100 +574,76 @@ function drawK(t, dt) {
       });
     }
     if (tr.ki >= k0) {
-      const cdl = cs[tr.ki]; const up = tr.side > 0; const yb = up ? yy(cdl[2]) + 6 : yy(cdl[1]) - 6;
+      const cdl = candleAt(sim.pair, tr.ki); if (!cdl) return;
+      const up = tr.side > 0; const yb = up ? yy(cdl[2]) + 6 : yy(cdl[1]) - 6;
       ctx.fillStyle = up ? c.good : c.bad; ctx.beginPath();
       if (up) { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb + 9); ctx.lineTo(xe + 5, yb + 9); } else { ctx.moveTo(xe, yb); ctx.lineTo(xe - 5, yb - 9); ctx.lineTo(xe + 5, yb - 9); }
       ctx.fill();
     }
   });
-  // 最新价
-  const last = cs[k1]; const ly = yy(last[3]); const lc = last[3] >= last[0] ? c.good : c.bad;
+  const last = candleAt(sim.pair, k1); const ly = yy(last[3]); const lc = last[3] >= last[0] ? c.good : c.bad;
   ctx.strokeStyle = lc; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W - padR, ly); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
   ctx.fillStyle = lc; ctx.fillRect(W - padR + 2, ly - 9, padR - 4, 18);
   ctx.fillStyle = '#fff'; ctx.font = `600 11px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillText(fmtPx(last[3]), W - padR + 6, ly); ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = c.fg; ctx.font = `600 12px ${css('--sans')}`; ctx.fillText(`${sim.pair}/USDT 永续 · 4H`, 6, 14);
-  drawParts(ctx, sim.partsK, dt);
+  const rk = RANK.get(sim.pair);
+  ctx.fillStyle = c.fg; ctx.font = `600 12px ${css('--sans')}`; ctx.fillText(`${sim.pair}/USDT 永续 · 4H${rk ? ` · 成交额第 ${rk.rank}` : ''}${sim.off ? ` · 往前 ${Math.round(sim.off / 6)} 天` : ''}`, 6, 14);
 }
 
-function drawE(t, dt) {
-  const { ctx, W, H } = EC; const s = STR[sim.si]; const eq = s.equity; const k1 = Math.floor(sim.k);
-  const padL = 46, padR = 10, padT = 12, padB = 18;
+function drawE(t) {
+  const { ctx, W, H } = EC; const s = STR[sim.si]; const eq = s.equity;
+  const padL = 46, padR = 12, padT = 12, padB = 18;
   const lo = Math.min(R.start_equity, d3.min(eq)) * 0.995, hi = Math.max(R.start_equity, d3.max(eq)) * 1.005;
   const xx = (i) => padL + (i / (R.n - 1)) * (W - padL - padR);
   const yy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-  const c = { acc: css('--accent'), grid: css('--grid'), muted: css('--muted'), good: css('--good'), bad: css('--bad') };
+  const c = { grid: css('--grid'), muted: css('--muted'), good: css('--good'), bad: css('--bad') };
   ctx.clearRect(0, 0, W, H);
   ctx.font = `11px ${css('--mono')}`; ctx.textBaseline = 'middle';
   d3.scaleLinear().domain([lo, hi]).ticks(3).forEach((v) => { const y = yy(v); ctx.strokeStyle = c.grid; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillStyle = c.muted; ctx.fillText(d3.format(',')(v), 2, y); });
   ctx.textBaseline = 'alphabetic';
   const by = yy(R.start_equity); ctx.strokeStyle = c.muted; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(padL, by); ctx.lineTo(W - padR, by); ctx.stroke(); ctx.setLineDash([]);
-  const up = eq[k1] >= R.start_equity; const lc = up ? c.good : c.bad;
-  const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
-  grad.addColorStop(0, lc + '55'); grad.addColorStop(1, lc + '00');
-  ctx.beginPath(); ctx.moveTo(xx(0), H - padB);
+  const lc = eq[KN] >= R.start_equity ? c.good : c.bad;
   const step = Math.max(1, Math.floor(R.n / (W - padL)));
-  for (let i = 0; i <= k1; i += step) ctx.lineTo(xx(i), yy(eq[i]));
-  ctx.lineTo(xx(k1), yy(eq[k1])); ctx.lineTo(xx(k1), H - padB); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
-  ctx.beginPath(); for (let i = 0; i <= k1; i += step) { const f = i === 0 ? 'moveTo' : 'lineTo'; ctx[f](xx(i), yy(eq[i])); } ctx.lineTo(xx(k1), yy(eq[k1]));
+  const grad = ctx.createLinearGradient(0, padT, 0, H - padB); grad.addColorStop(0, lc + '55'); grad.addColorStop(1, lc + '00');
+  ctx.beginPath(); ctx.moveTo(xx(0), H - padB);
+  for (let i = 0; i <= KN; i += step) ctx.lineTo(xx(i), yy(eq[i]));
+  ctx.lineTo(xx(KN), yy(eq[KN])); ctx.lineTo(xx(KN), H - padB); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath(); for (let i = 0; i <= KN; i += step) ctx[i === 0 ? 'moveTo' : 'lineTo'](xx(i), yy(eq[i])); ctx.lineTo(xx(KN), yy(eq[KN]));
   ctx.strokeStyle = lc; ctx.lineWidth = 1.8; ctx.stroke();
-  const hx = xx(k1), hy = yy(eq[k1]);
-  const pulse = reduceMotion ? 0 : (Math.sin(t / 220) + 1) / 2;
-  ctx.globalAlpha = 0.25 + 0.2 * pulse; ctx.fillStyle = lc; ctx.beginPath(); ctx.arc(hx, hy, 7 + pulse * 4, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+  const hx = xx(KN), hy = yy(eq[KN]); const pulse = reduceMotion ? 0 : (Math.sin(t / 260) + 1) / 2;
+  ctx.globalAlpha = 0.22 + 0.2 * pulse; ctx.fillStyle = lc; ctx.beginPath(); ctx.arc(hx, hy, 6 + pulse * 4, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = c.muted; ctx.font = `11px ${css('--sans')}`; ctx.fillText('资金曲线', padL + 2, padT + 2);
-  if (sim.burstE) { sim.burstE.forEach((tr) => burst(sim.partsE, hx, hy, tr.pnl >= 0 ? c.good : c.bad, Math.min(40, 8 + Math.abs(tr.pnl) * 1.5))); sim.burstE = null; }
-  drawParts(ctx, sim.partsE, dt);
+  ctx.fillStyle = c.muted; ctx.font = `11px ${css('--sans')}`; ctx.fillText(`资金曲线 · ${R.start.slice(0, 10)} 起`, padL + 2, padT + 2);
 }
 
+function cs1(tr) { const cd = candleAt(tr.pair, KN); return cd ? tr.side * (cd[3] / tr.entry - 1) * tr.lev * 100 : 0; }
 function renderAccount() {
-  const s = STR[sim.si]; const k1 = Math.floor(sim.k); const eq = s.equity[k1];
-  const d24 = eq - s.equity[Math.max(0, k1 - 6)]; const tot = eq / R.start_equity - 1;
+  const s = STR[sim.si]; const eq = s.equity[KN];
+  const d24 = eq - s.equity[Math.max(0, KN - 6)]; const tot = eq / R.start_equity - 1;
   document.getElementById('acc-eq').textContent = usd(eq);
-  const a24 = document.getElementById('acc-24'); a24.textContent = `${sgnUsd(d24)}`; a24.className = 'mid ' + cls(d24);
+  const a24 = document.getElementById('acc-24'); a24.textContent = sgnUsd(d24); a24.className = 'mid ' + cls(d24);
   const at = document.getElementById('acc-tot'); at.textContent = pct(tot * 100); at.className = 'mid ' + cls(tot);
-  const open = openAt(s, k1); const closed = closedBy(s, k1);
+  const open = openAt(s, KN); const closed = closedBy(s, KN);
   document.getElementById('acc-pos').textContent = `${open.length} / ${closed.length}`;
   document.getElementById('h-eq').textContent = usd(eq);
-  const hc = document.getElementById('h-chg'); hc.replaceChildren(el('span', { className: cls(d24), textContent: `24h ${sgnUsd(d24)}` }), ' · ', el('span', { className: cls(tot), textContent: `累计 ${pct(tot * 100)}` }), ` · ${s.id}`);
-  document.getElementById('sim-time').textContent = fmtBar(k1);
-  if (+scrub.value !== k1) scrub.value = k1;
-  ptabs.querySelectorAll('.ptab').forEach((b) => { const has = open.some((tr) => tr.pair === b.dataset.pair); const dot = b.querySelector('.live'); if (has && !dot) b.prepend(el('span', { className: 'live' })); if (!has && dot) dot.remove(); });
-  const row = (tr, k, isNew) => {
-    const cl = k1 < tr.kx ? cs1(tr) : null;
-    const pnlTxt = cl !== null ? `浮 ${pct(cl)}` : sgnUsd(tr.pnl);
-    const v = cl !== null ? cl : tr.pnl;
-    return el('div', { className: 'r' + (isNew ? ' new' : '') }, [el('b', { textContent: tr.pair }), el('span', { textContent: tr.side > 0 ? '多' : '空', className: tr.side > 0 ? 'good' : 'bad' }),
-      el('span', { className: 't', textContent: `${(k1 < tr.kx ? tr.te : tr.tx).slice(5).replace('T', ' ')} · ${tr.lev.toFixed(1)}x` }), el('b', { textContent: pnlTxt, className: cls(v) })]);
+  document.getElementById('h-chg').replaceChildren(el('span', { className: cls(d24), textContent: `24h ${sgnUsd(d24)}` }), ' · ', el('span', { className: cls(tot), textContent: `累计 ${pct(tot * 100)}` }), ` · ${s.id}`);
+  const row = (tr) => {
+    const isOpen = KN < tr.kx; const v = isOpen ? cs1(tr) : tr.pnl;
+    const r = el('div', { className: 'r click', tabIndex: 0, title: '在 K 线上查看' }, [el('b', { textContent: tr.pair }), el('span', { textContent: tr.side > 0 ? '多' : '空', className: tr.side > 0 ? 'good' : 'bad' }),
+      el('span', { className: 't', textContent: `${(isOpen ? tr.te : tr.tx).slice(5).replace('T', ' ')} · ${tr.lev.toFixed(1)}x` }), el('b', { textContent: isOpen ? `浮 ${pct(v)}` : sgnUsd(v), className: cls(v) })]);
+    const go = () => { setPair(tr.pair); sim.off = Math.max(0, KN - Math.min(KN, tr.kx + 10)); drawK(); kc.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); };
+    r.addEventListener('click', go); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    return r;
   };
-  const ob = document.getElementById('sim-open');
-  ob.replaceChildren(...(open.length ? open.map((tr) => row(tr)) : [el('div', { className: 'empty', textContent: '空仓' })]));
-  const lb = document.getElementById('sim-log');
-  const recent = closed.slice(-6).reverse();
-  lb.replaceChildren(...(recent.length ? recent.map((tr) => row(tr, k1, sim.playing && tr.kx > k1 - 2)) : [el('div', { className: 'empty', textContent: '还没有成交' })]));
+  document.getElementById('sim-open').replaceChildren(...(open.length ? open.map(row) : [el('div', { className: 'empty', textContent: '空仓' })]));
+  const recent = closed.slice().sort((a, b) => b.kx - a.kx).slice(0, 8);
+  document.getElementById('sim-log').replaceChildren(...(recent.length ? recent.map(row) : [el('div', { className: 'empty', textContent: '还没有成交' })]));
 }
-// 未平仓浮动收益（按保证金算，含杠杆）
-function cs1(tr) { const c = R.candles[tr.pair][Math.floor(sim.k)][3]; return tr.side * (c / tr.entry - 1) * tr.lev * 100; }
-
-let simRaf = false, simLast = 0, simVisible = true, lastK = Math.floor(sim.k);
-function simRender(full) { if (full) renderAccount(); const t = performance.now(); drawK(t, 16); drawE(t, 16); }
-function simLoop(t) {
-  const dt = Math.min(60, t - (simLast || t)); simLast = t;
-  if (sim.playing) {
-    sim.k = Math.min(R.n - 1, sim.k + sim.speed * dt / 1000);
-    const k1 = Math.floor(sim.k);
-    if (k1 !== lastK) {
-      const s = STR[sim.si];
-      const done = s.trades.filter((tr) => tr.kx > lastK && tr.kx <= k1);
-      if (done.length) { sim.burstE = done; done.forEach((tr) => { if (tr.pair === sim.pair) sim.newIds.add(tr); }); }
-      lastK = k1; renderAccount();
-    }
-    if (sim.k >= R.n - 1) setPlaying(false);
-  }
-  drawK(t, dt); drawE(t, dt);
-  if (simVisible && (sim.playing || sim.partsK.length || sim.partsE.length || !reduceMotion)) requestAnimationFrame(simLoop); else simRaf = false;
-}
-function simKick() { lastK = Math.floor(sim.k); if (!simRaf) { simRaf = true; simLast = 0; requestAnimationFrame(simLoop); } }
+let simRaf = false, simVisible = true;
+function simRender() { renderAccount(); drawK(); drawE(performance.now()); }
+function simLoop(t) { drawE(t); if (simVisible && !reduceMotion) requestAnimationFrame(simLoop); else simRaf = false; }
+function simKick() { if (!simRaf && !reduceMotion) { simRaf = true; requestAnimationFrame(simLoop); } }
 new IntersectionObserver((es) => { simVisible = es[0].isIntersecting; if (simVisible) simKick(); }).observe(document.getElementById('sim'));
+pickDefaultPair();
 
 // ---------- 详情
 function select(id, scroll = true) {
@@ -813,7 +803,7 @@ function drawRounds() {
     el('td', { textContent: pct(r.top_oos), className: cls(r.top_oos) }), el('td', { textContent: `${pct(r.champ_train)} → ${pct(r.champ_oos)}` })])));
   const box = document.getElementById('c-rounds'); box.replaceChildren();
   const W = Math.max(280, box.clientWidth), H = 190;
-  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '三轮的样本外平均收益对比');
+  const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各轮的样本外平均收益对比');
   const keys = [['final_oos', '最后一代样本外平均'], ['top_oos', '训练前 100 名样本外平均']];
   const y = d3.scaleLinear().domain([Math.min(-5, d3.min(D.rounds, (r) => Math.min(r.final_oos, r.top_oos)) * 1.15), 0]).nice();
   const m = { t: 22, r: 8, b: 24, l: textW(svg, y.ticks(4).map((t) => t + '%')) + 8 };

@@ -1,0 +1,606 @@
+{
+ "source": "OKX USDT 永续 24h 成交额前 100（只含加密货币，去掉稳定币）",
+ "fetched": "2026-11-09 16:37 UTC",
+ "coins": [
+  {
+   "rank": 1,
+   "base": "ETH",
+   "vol_usd": 8817528400,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 2,
+   "base": "BTC",
+   "vol_usd": 7845021001,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 3,
+   "base": "ZEC",
+   "vol_usd": 1411730734,
+   "listed": "2025-11-06"
+  },
+  {
+   "rank": 4,
+   "base": "SOL",
+   "vol_usd": 1061644450,
+   "listed": "2021-01-22"
+  },
+  {
+   "rank": 5,
+   "base": "XRP",
+   "vol_usd": 422968615,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 6,
+   "base": "PEPE",
+   "vol_usd": 395861889,
+   "listed": "2023-05-03"
+  },
+  {
+   "rank": 7,
+   "base": "HYPE",
+   "vol_usd": 261965022,
+   "listed": "2025-02-21"
+  },
+  {
+   "rank": 8,
+   "base": "DOGE",
+   "vol_usd": 252121389,
+   "listed": "2020-04-21"
+  },
+  {
+   "rank": 9,
+   "base": "AKE",
+   "vol_usd": 149539260,
+   "listed": "2026-09-16"
+  },
+  {
+   "rank": 10,
+   "base": "NEAR",
+   "vol_usd": 131538531,
+   "listed": "2020-12-21"
+  },
+  {
+   "rank": 11,
+   "base": "PIEVERSE",
+   "vol_usd": 123824714,
+   "listed": "2025-11-16"
+  },
+  {
+   "rank": 12,
+   "base": "WLD",
+   "vol_usd": 104605477,
+   "listed": "2023-07-24"
+  },
+  {
+   "rank": 13,
+   "base": "PUMP",
+   "vol_usd": 102944870,
+   "listed": "2025-07-14"
+  },
+  {
+   "rank": 14,
+   "base": "UNI",
+   "vol_usd": 95305676,
+   "listed": "2020-09-17"
+  },
+  {
+   "rank": 15,
+   "base": "SUI",
+   "vol_usd": 83238023,
+   "listed": "2023-05-05"
+  },
+  {
+   "rank": 16,
+   "base": "ARB",
+   "vol_usd": 78202939,
+   "listed": "2023-03-23"
+  },
+  {
+   "rank": 17,
+   "base": "AVAX",
+   "vol_usd": 77686911,
+   "listed": "2020-09-23"
+  },
+  {
+   "rank": 18,
+   "base": "TRUMP",
+   "vol_usd": 73267202,
+   "listed": "2025-01-19"
+  },
+  {
+   "rank": 19,
+   "base": "BNB",
+   "vol_usd": 58449413,
+   "listed": "2022-12-23"
+  },
+  {
+   "rank": 20,
+   "base": "LINK",
+   "vol_usd": 57268517,
+   "listed": "2020-02-28"
+  },
+  {
+   "rank": 21,
+   "base": "LIT",
+   "vol_usd": 55187844,
+   "listed": "2025-12-24"
+  },
+  {
+   "rank": 22,
+   "base": "ENA",
+   "vol_usd": 54460559,
+   "listed": "2025-09-17"
+  },
+  {
+   "rank": 23,
+   "base": "BCH",
+   "vol_usd": 48730417,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 24,
+   "base": "AAVE",
+   "vol_usd": 46866214,
+   "listed": "2020-12-10"
+  },
+  {
+   "rank": 25,
+   "base": "FIL",
+   "vol_usd": 46034739,
+   "listed": "2019-08-10"
+  },
+  {
+   "rank": 26,
+   "base": "ADA",
+   "vol_usd": 41825266,
+   "listed": "2020-02-28"
+  },
+  {
+   "rank": 27,
+   "base": "ONDO",
+   "vol_usd": 39585595,
+   "listed": "2024-08-06"
+  },
+  {
+   "rank": 28,
+   "base": "LTC",
+   "vol_usd": 37535200,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 29,
+   "base": "ONE",
+   "vol_usd": 34190548,
+   "listed": "2024-02-20"
+  },
+  {
+   "rank": 30,
+   "base": "XPL",
+   "vol_usd": 30763475,
+   "listed": "2025-08-28"
+  },
+  {
+   "rank": 31,
+   "base": "RSR",
+   "vol_usd": 30158800,
+   "listed": "2020-09-09"
+  },
+  {
+   "rank": 32,
+   "base": "OKB",
+   "vol_usd": 25496225,
+   "listed": "2025-09-04"
+  },
+  {
+   "rank": 33,
+   "base": "INJ",
+   "vol_usd": 25233683,
+   "listed": "2023-11-30"
+  },
+  {
+   "rank": 34,
+   "base": "STRK",
+   "vol_usd": 25177971,
+   "listed": "2024-02-20"
+  },
+  {
+   "rank": 35,
+   "base": "PONS",
+   "vol_usd": 22539753,
+   "listed": "2026-09-05"
+  },
+  {
+   "rank": 36,
+   "base": "EDGE",
+   "vol_usd": 22072026,
+   "listed": "2026-04-01"
+  },
+  {
+   "rank": 37,
+   "base": "MERL",
+   "vol_usd": 21369693,
+   "listed": "2024-04-19"
+  },
+  {
+   "rank": 38,
+   "base": "DGAI",
+   "vol_usd": 19195668,
+   "listed": "2026-09-03"
+  },
+  {
+   "rank": 39,
+   "base": "TAO",
+   "vol_usd": 18412512,
+   "listed": "2024-09-20"
+  },
+  {
+   "rank": 40,
+   "base": "CAP",
+   "vol_usd": 18131767,
+   "listed": "2026-06-26"
+  },
+  {
+   "rank": 41,
+   "base": "ASTER",
+   "vol_usd": 16462258,
+   "listed": "2025-09-22"
+  },
+  {
+   "rank": 42,
+   "base": "DOT",
+   "vol_usd": 16066058,
+   "listed": "2020-08-25"
+  },
+  {
+   "rank": 43,
+   "base": "USELESS",
+   "vol_usd": 14903813,
+   "listed": "2025-07-25"
+  },
+  {
+   "rank": 44,
+   "base": "ZRO",
+   "vol_usd": 13817683,
+   "listed": "2024-06-20"
+  },
+  {
+   "rank": 45,
+   "base": "BEAT",
+   "vol_usd": 13288323,
+   "listed": "2025-11-12"
+  },
+  {
+   "rank": 46,
+   "base": "PENGU",
+   "vol_usd": 13146854,
+   "listed": "2024-12-17"
+  },
+  {
+   "rank": 47,
+   "base": "OP",
+   "vol_usd": 13073181,
+   "listed": "2022-06-01"
+  },
+  {
+   "rank": 48,
+   "base": "XLM",
+   "vol_usd": 12467471,
+   "listed": "2020-04-21"
+  },
+  {
+   "rank": 49,
+   "base": "CASHCAT",
+   "vol_usd": 11922173,
+   "listed": "2026-09-03"
+  },
+  {
+   "rank": 50,
+   "base": "CT",
+   "vol_usd": 11564061,
+   "listed": "2026-09-30"
+  },
+  {
+   "rank": 51,
+   "base": "DASH",
+   "vol_usd": 11506421,
+   "listed": "2025-11-06"
+  },
+  {
+   "rank": 52,
+   "base": "TIA",
+   "vol_usd": 11483504,
+   "listed": "2023-10-31"
+  },
+  {
+   "rank": 53,
+   "base": "SHIB",
+   "vol_usd": 10623056,
+   "listed": "2021-05-09"
+  },
+  {
+   "rank": 54,
+   "base": "INIT",
+   "vol_usd": 10617927,
+   "listed": "2025-04-24"
+  },
+  {
+   "rank": 55,
+   "base": "PI",
+   "vol_usd": 10287054,
+   "listed": "2025-02-20"
+  },
+  {
+   "rank": 56,
+   "base": "WLFI",
+   "vol_usd": 9975375,
+   "listed": "2025-08-23"
+  },
+  {
+   "rank": 57,
+   "base": "ETC",
+   "vol_usd": 9864608,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 58,
+   "base": "MET",
+   "vol_usd": 9746819,
+   "listed": "2025-10-10"
+  },
+  {
+   "rank": 59,
+   "base": "GRAM",
+   "vol_usd": 9740571,
+   "listed": "2026-06-17"
+  },
+  {
+   "rank": 60,
+   "base": "HBAR",
+   "vol_usd": 9476886,
+   "listed": "2023-08-16"
+  },
+  {
+   "rank": 61,
+   "base": "AERO",
+   "vol_usd": 9435581,
+   "listed": "2025-07-03"
+  },
+  {
+   "rank": 62,
+   "base": "ETHFI",
+   "vol_usd": 9235319,
+   "listed": "2024-03-18"
+  },
+  {
+   "rank": 63,
+   "base": "TRX",
+   "vol_usd": 8931850,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 64,
+   "base": "CRV",
+   "vol_usd": 8896147,
+   "listed": "2020-09-04"
+  },
+  {
+   "rank": 65,
+   "base": "APT",
+   "vol_usd": 8498092,
+   "listed": "2022-10-19"
+  },
+  {
+   "rank": 66,
+   "base": "APR",
+   "vol_usd": 8351585,
+   "listed": "2025-10-24"
+  },
+  {
+   "rank": 67,
+   "base": "ZAMA",
+   "vol_usd": 7893697,
+   "listed": "2026-01-09"
+  },
+  {
+   "rank": 68,
+   "base": "HUMA",
+   "vol_usd": 7661631,
+   "listed": "2025-05-26"
+  },
+  {
+   "rank": 69,
+   "base": "MEGA",
+   "vol_usd": 7173777,
+   "listed": "2026-04-30"
+  },
+  {
+   "rank": 70,
+   "base": "RAY",
+   "vol_usd": 7120420,
+   "listed": "2024-03-12"
+  },
+  {
+   "rank": 71,
+   "base": "VVV",
+   "vol_usd": 6895033,
+   "listed": "2026-07-03"
+  },
+  {
+   "rank": 72,
+   "base": "ACT",
+   "vol_usd": 6438168,
+   "listed": "2024-11-14"
+  },
+  {
+   "rank": 73,
+   "base": "WIF",
+   "vol_usd": 6395980,
+   "listed": "2024-04-15"
+  },
+  {
+   "rank": 74,
+   "base": "BAT",
+   "vol_usd": 6029508,
+   "listed": "2020-08-28"
+  },
+  {
+   "rank": 75,
+   "base": "SAND",
+   "vol_usd": 5863681,
+   "listed": "2021-04-02"
+  },
+  {
+   "rank": 76,
+   "base": "AXIS",
+   "vol_usd": 5834477,
+   "listed": "2026-10-21"
+  },
+  {
+   "rank": 77,
+   "base": "KAITO",
+   "vol_usd": 5769186,
+   "listed": "2025-02-20"
+  },
+  {
+   "rank": 78,
+   "base": "FARTCOIN",
+   "vol_usd": 5731061,
+   "listed": "2024-12-20"
+  },
+  {
+   "rank": 79,
+   "base": "ICP",
+   "vol_usd": 5693882,
+   "listed": "2021-05-14"
+  },
+  {
+   "rank": 80,
+   "base": "ATOM",
+   "vol_usd": 5592846,
+   "listed": "2019-11-12"
+  },
+  {
+   "rank": 81,
+   "base": "GRASS",
+   "vol_usd": 5365475,
+   "listed": "2024-10-28"
+  },
+  {
+   "rank": 82,
+   "base": "QUANT",
+   "vol_usd": 5351992,
+   "listed": "2026-10-01"
+  },
+  {
+   "rank": 83,
+   "base": "BTW",
+   "vol_usd": 5314546,
+   "listed": "2026-10-22"
+  },
+  {
+   "rank": 84,
+   "base": "STX",
+   "vol_usd": 5165264,
+   "listed": "2023-02-21"
+  },
+  {
+   "rank": 85,
+   "base": "NIGHT",
+   "vol_usd": 5070731,
+   "listed": "2025-12-09"
+  },
+  {
+   "rank": 86,
+   "base": "MON",
+   "vol_usd": 5018924,
+   "listed": "2025-10-10"
+  },
+  {
+   "rank": 87,
+   "base": "ORDI",
+   "vol_usd": 4992191,
+   "listed": "2023-05-21"
+  },
+  {
+   "rank": 88,
+   "base": "H",
+   "vol_usd": 4865738,
+   "listed": "2025-07-03"
+  },
+  {
+   "rank": 89,
+   "base": "CHIP",
+   "vol_usd": 4800544,
+   "listed": "2026-04-21"
+  },
+  {
+   "rank": 90,
+   "base": "DOOD",
+   "vol_usd": 4757546,
+   "listed": "2025-05-12"
+  },
+  {
+   "rank": 91,
+   "base": "IRYS",
+   "vol_usd": 4689643,
+   "listed": "2026-05-27"
+  },
+  {
+   "rank": 92,
+   "base": "UP",
+   "vol_usd": 4626804,
+   "listed": "2026-04-08"
+  },
+  {
+   "rank": 93,
+   "base": "RENDER",
+   "vol_usd": 4471759,
+   "listed": "2024-08-08"
+  },
+  {
+   "rank": 94,
+   "base": "PYTH",
+   "vol_usd": 4419477,
+   "listed": "2023-11-20"
+  },
+  {
+   "rank": 95,
+   "base": "BOME",
+   "vol_usd": 4313854,
+   "listed": "2024-08-15"
+  },
+  {
+   "rank": 96,
+   "base": "ZIL",
+   "vol_usd": 4266247,
+   "listed": "2020-09-09"
+  },
+  {
+   "rank": 97,
+   "base": "RIVER",
+   "vol_usd": 4254540,
+   "listed": "2026-01-09"
+  },
+  {
+   "rank": 98,
+   "base": "BLEND",
+   "vol_usd": 4250259,
+   "listed": "2026-04-29"
+  },
+  {
+   "rank": 99,
+   "base": "LDO",
+   "vol_usd": 4119087,
+   "listed": "2023-02-02"
+  },
+  {
+   "rank": 100,
+   "base": "JUP",
+   "vol_usd": 4095550,
+   "listed": "2024-01-31"
+  }
+ ]
+}
