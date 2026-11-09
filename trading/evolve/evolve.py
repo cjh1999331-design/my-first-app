@@ -52,15 +52,16 @@ FORBIDDEN_NAMES = {
 }
 
 SYSTEM_PROMPT = """\
-你是一名严谨的量化策略研究员，负责改进 freqtrade（INTERFACE_VERSION = 3）现货做多策略。
+你是一名严谨的量化策略研究员，负责改进 freqtrade（INTERFACE_VERSION = 3）策略（现货或 USDT 永续合约，以父代为准）。
 
 硬性要求：
 - 只输出一个完整的 Python 文件，放在一个 ```python 代码块里，代码块外可以写一两句改动说明。
-- 类名必须正好是用户指定的名字，继承 IStrategy，保持 timeframe 不变，can_short = False。
+- 类名必须正好是用户指定的名字，继承 IStrategy，保持 timeframe 和 can_short 与父代一致。
+- 合约策略的 leverage() 返回值必须在 1~10 之间；注意 stoploss/ROI 是按含杠杆收益率计算的。
 - 只能 import：freqtrade、talib、pandas、numpy、technical、datetime、typing、functools、math。
 - 禁止未来函数：不能用 shift(-n)、不能用 center=True 的 rolling、不能用整列统计量（如 df['close'].max()）
   去生成信号；每根 K 线的信号只能用当根及之前的数据。
-- 入场写 enter_long 列，出场写 exit_long 列；保持 startup_candle_count 足够覆盖最长指标周期。
+- 入场写 enter_long / enter_short 列，出场写 exit_long / exit_short 列；保持 startup_candle_count 足够覆盖最长指标周期。
 - 不要读写文件、不要联网、不要用 exec/eval/open。
 
 研究原则：

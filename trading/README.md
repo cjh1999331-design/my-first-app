@@ -6,9 +6,13 @@
 ```
 trading/
 ├── user_data/
-│   ├── config.json                 # 交易所/币对/模拟盘配置（默认 OKX 现货，dry_run=true）
-│   └── strategies/EvoSeedStrategy.py  # 种子策略：EMA 金叉 + RSI 过滤，参数可 hyperopt
-├── evolve/evolve.py                # 进化循环：Claude 改写 -> 回测打分 -> 保留精英
+│   ├── config.json                 # 默认 OKX USDT 永续合约、逐仓、dry_run=true
+│   └── strategies/
+│       ├── EvoSeedStrategy.py      # 现货种子（只做多）
+│       └── EvoFuturesSeed.py       # 合约种子（多空，1~10 倍杠杆）
+├── evolve/evolve.py                # 进化循环（API 模式）：Claude 改写 -> 回测打分 -> 保留精英
+├── evolve/score.py                 # 打分工具（会话模式）：策略由 Claude Code 直接写，脚本只负责检查+回测+记录
+├── evo_futures/                    # 第 1 轮合约进化（5 代）的全部策略、记录和结论
 ├── docker-compose.yml              # 不想装 Python 环境时用 Docker 跑 freqtrade
 └── requirements.txt
 ```
@@ -25,8 +29,10 @@ pip install -r requirements.txt
 
 ```bash
 freqtrade download-data --config user_data/config.json --userdir user_data \
-  -t 1h --timerange 20240101-
+  -t 1h 4h --timerange 20240101-
 ```
+
+> 现在默认是合约模式。想做现货：把 `config.json` 里 `trading_mode` 改成 `spot`、删掉 `margin_mode`，币对去掉 `:USDT` 后缀。
 
 > 默认交易所是 OKX。要换成 Binance 等，改 `config.json` 里的 `exchange.name`。
 > 如果你的网络需要代理，新建 `user_data/config.private.json`（已在 .gitignore 里）：
