@@ -67,6 +67,8 @@ def main():
             tx64 = np.datetime64(tx) + np.timedelta64(1, "h")    # 在这根 1h K 线内平仓
             ks = int(np.searchsorted(ends, te64, side="right"))   # 第一根收盘晚于入场的 4h K 线
             kx = int(np.searchsorted(ends, tx64, side="left"))    # 平仓所在的 4h K 线
+            if tx64 >= t_end:                                     # 回测到数据末尾被强制平仓：其实仍在持仓
+                kx = n
             if kx < n:
                 realized[kx:] += pnl
             hi = min(kx, n)

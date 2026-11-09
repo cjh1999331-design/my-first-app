@@ -129,9 +129,9 @@
   @media (min-width: 720px) { .lists { grid-template-columns: 1fr 1fr; } }
   .lists h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
   .rows { display: flex; flex-direction: column; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .rows .r { display: grid; grid-template-columns: 52px 30px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .rows .r { display: grid; grid-template-columns: 76px 24px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
   .rows .r .t { color: var(--muted); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rows .r b { font-family: var(--mono); }
+  .rows .r b { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rows .empty { color: var(--muted); padding: 6px 0; }
   .rows .r.new { animation: flash 1.2s ease-out; }
   @keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
@@ -204,7 +204,7 @@
   </section>
 
   <section class="card" id="rounds">
-    <h2>三轮对比：过拟合减轻了，但还没找到真优势</h2>
+    <h2>轮次对比：扩到 100 个币后，训练分开始能预测样本外</h2>
     <p class="sub">每一轮的样本外区间相同（2025-06-01 起）。样本外只用来检验，从没参与选择。第 1~3 轮只用 BTC、ETH、SOL、BNB、XRP 五个币，第 4 轮扩展到成交额前 100。</p>
     <div class="scroll"><table class="champs"><thead><tr><th>轮次</th><th style="text-align:left">方法</th><th>最后一代样本外合格</th><th>最后一代样本外平均</th><th>训练前 100 名样本外平均</th><th>冠军 训练 → 样本外</th></tr></thead><tbody id="round-body"></tbody></table></div>
     <div class="chart" id="c-rounds"></div>
@@ -229,7 +229,7 @@
 
   <section class="card" id="overfit">
     <h2>过拟合检验：训练分和样本外收益的关系</h2>
-    <p class="sub">全部个体，横轴是训练期稳健得分，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。这一轮右边的高分个体大多集中在 0 附近小亏，比第 1 轮好，但仍没有明显往上走。</p>
+    <p class="sub">全部个体，横轴是训练期稳健得分，纵轴是样本外收益。如果训练期学到的是真规律，点应该往右上角走。这一轮训练分和样本外收益的相关性是 +0.44（前 3 轮都是负的），右边的高分个体整体偏上。</p>
     <div class="chart" id="c-scatter"></div>
   </section>
 
@@ -285,7 +285,7 @@ document.getElementById('stats').append(
   stat('样本外合格', `${passN} / ${ALL.length}`, `最后一代：${finalPass} / ${D.final_population.length}`, finalPass ? 'good' : 'bad'));
 document.getElementById('verdict').textContent = finalPass === 0
   ? `最后一代 ${D.final_population.length} 个个体在样本外全部不合格，暂时不要拿去交易。`
-  : `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}。最后一代 ${finalPass} / ${D.final_population.length} 个样本外合格，但都是训练分很低的新个体，更像运气。过拟合比第 1 轮轻了很多，可还没找到在新行情里稳定赚钱的规律，暂时不要拿去交易。`;
+  : `冠军 ${champ.id} 训练期 ${pct(M(champ.tr).ret)}，样本外 ${pct(M(champ.oo).ret)}（回撤 ${pct(M(champ.oo).dd, false)}），最后一代 ${finalPass} / ${D.final_population.length} 个样本外合格。这是四轮里第一次训练好、样本外也好。但优势很薄（样本外盈亏比约 1.05），回测是简化版，样本外数据也已经看过四次了，还要用 freqtrade 完整回测和实时模拟盘再验证，先不要投入真钱。`;
 
 // 图例
 for (const id of ['sp-legend', 'sp-legend2']) {
@@ -490,7 +490,7 @@ const ptabs = document.getElementById('pair-tabs');
 function pairOptions() {
   const s = STR[sim.si]; const cnt = tradeCount(s);
   const list = Object.keys(CANDLES).sort((a, b) => (RANK.get(a)?.rank ?? 999) - (RANK.get(b)?.rank ?? 999));
-  psel.replaceChildren(...list.map((p) => { const o = new Option(`${RANK.get(p)?.rank ?? '–'}. ${p}/USDT${cnt.get(p) ? ` · ${cnt.get(p)} 笔` : ''}`, p); return o; }));
+  psel.replaceChildren(...list.map((p) => { const o = new Option(`${RANK.get(p)?.rank ?? '–'}. ${p}/USDT${cnt.get(p) ? ` · 近 90 天 ${cnt.get(p)} 笔` : ''}`, p); return o; }));
   psel.value = sim.pair;
   const open = new Set(openAt(s, KN).map((t) => t.pair));
   const fav = [...new Set([...open, ...[...cnt.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]), 'BTC', 'ETH'])].filter((p) => CANDLES[p]).slice(0, 8);
@@ -623,7 +623,7 @@ function renderAccount() {
   const a24 = document.getElementById('acc-24'); a24.textContent = sgnUsd(d24); a24.className = 'mid ' + cls(d24);
   const at = document.getElementById('acc-tot'); at.textContent = pct(tot * 100); at.className = 'mid ' + cls(tot);
   const open = openAt(s, KN); const closed = closedBy(s, KN);
-  document.getElementById('acc-pos').textContent = `${open.length} / ${closed.length}`;
+  document.getElementById('acc-pos').textContent = `${open.length} / ${(s.n_trades - open.length).toLocaleString()}`;
   document.getElementById('h-eq').textContent = usd(eq);
   document.getElementById('h-chg').replaceChildren(el('span', { className: cls(d24), textContent: `24h ${sgnUsd(d24)}` }), ' · ', el('span', { className: cls(tot), textContent: `累计 ${pct(tot * 100)}` }), ` · ${s.id}`);
   const row = (tr) => {
@@ -634,7 +634,8 @@ function renderAccount() {
     r.addEventListener('click', go); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
     return r;
   };
-  document.getElementById('sim-open').replaceChildren(...(open.length ? open.map(row) : [el('div', { className: 'empty', textContent: '空仓' })]));
+  const openSorted = open.slice().sort((a, b) => Math.abs(cs1(b)) - Math.abs(cs1(a)));
+  document.getElementById('sim-open').replaceChildren(...(open.length ? [...openSorted.slice(0, 10).map(row), ...(open.length > 10 ? [el('div', { className: 'empty', textContent: `还有 ${open.length - 10} 个持仓，可以在上面的币种列表里查看` })] : [])] : [el('div', { className: 'empty', textContent: '空仓' })]));
   const recent = closed.slice().sort((a, b) => b.kx - a.kx).slice(0, 8);
   document.getElementById('sim-log').replaceChildren(...(recent.length ? recent.map(row) : [el('div', { className: 'empty', textContent: '还没有成交' })]));
 }
@@ -805,18 +806,20 @@ function drawRounds() {
   const W = Math.max(280, box.clientWidth), H = 190;
   const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '各轮的样本外平均收益对比');
   const keys = [['final_oos', '最后一代样本外平均'], ['top_oos', '训练前 100 名样本外平均']];
-  const y = d3.scaleLinear().domain([Math.min(-5, d3.min(D.rounds, (r) => Math.min(r.final_oos, r.top_oos)) * 1.15), 0]).nice();
-  const m = { t: 22, r: 8, b: 24, l: textW(svg, y.ticks(4).map((t) => t + '%')) + 8 };
+  const y = d3.scaleLinear().domain([Math.min(-5, d3.min(D.rounds, (r) => Math.min(r.final_oos, r.top_oos)) * 1.15), Math.max(5, d3.max(D.rounds, (r) => Math.max(r.final_oos, r.top_oos)) * 1.25)]).nice();
+  const m = { t: 8, r: 8, b: 40, l: textW(svg, y.ticks(4).map((t) => t + '%')) + 8 };
   y.range([H - m.b, m.t]);
   const x0 = d3.scaleBand().domain(D.rounds.map((r) => r.name)).range([m.l, W - m.r]).padding(0.25);
   const x1 = d3.scaleBand().domain(keys.map((k) => k[0])).range([0, x0.bandwidth()]).padding(0.12);
   svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat((d) => d + '%').tickSize(-(W - m.l - m.r)).tickPadding(6)).call(axisStyle);
-  svg.append('g').attr('transform', `translate(0,${m.t})`).call(d3.axisTop(x0).tickSize(0).tickPadding(8)).call(axisStyle);
+  svg.append('g').attr('transform', `translate(0,${H - m.b + 4})`).call(d3.axisBottom(x0).tickSize(0).tickPadding(6)).call(axisStyle);
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--muted'));
   const colors = [css('--bad'), css('--muted')];
+  // 正值柱子用绿色
   const g = svg.append('g').selectAll('g').data(D.rounds).join('g').attr('transform', (r) => `translate(${x0(r.name)},0)`);
   keys.forEach(([k], i) => {
-    g.append('rect').attr('x', x1(k)).attr('width', x1.bandwidth()).attr('y', y(0)).attr('height', (r) => y(r[k]) - y(0)).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85).attr('rx', 2);
-    g.append('text').attr('x', x1(k) + x1.bandwidth() / 2).attr('y', (r) => y(r[k]) + 13).attr('text-anchor', 'middle').attr('fill', css('--fg')).text((r) => r[k].toFixed(1));
+    g.append('rect').attr('x', x1(k)).attr('width', x1.bandwidth()).attr('y', (r) => Math.min(y(r[k]), y(0))).attr('height', (r) => Math.abs(y(r[k]) - y(0))).attr('fill', (r) => (r[k] >= 0 ? css('--good') : colors[i])).attr('fill-opacity', i ? 0.55 : 0.85).attr('rx', 2);
+    g.append('text').attr('x', x1(k) + x1.bandwidth() / 2).attr('y', (r) => (r[k] >= 0 ? y(r[k]) - 4 : y(r[k]) + 13)).attr('text-anchor', 'middle').attr('fill', css('--fg')).text((r) => (r[k] > 0 ? '+' : '') + r[k].toFixed(1));
   });
   const lg = svg.append('g').attr('transform', `translate(${m.l},${H - 6})`);
   keys.forEach(([k, label], i) => { const xx = i * Math.min(170, (W - m.l) / 2); lg.append('rect').attr('x', xx).attr('y', -9).attr('width', 10).attr('height', 10).attr('fill', colors[i]).attr('fill-opacity', i ? 0.55 : 0.85); lg.append('text').attr('x', xx + 14).text(label); });

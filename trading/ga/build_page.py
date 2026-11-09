@@ -47,9 +47,12 @@ def main():
     rp = HERE / "replay.json"
     if rp.exists():
         rj = json.loads(rp.read_text())
+        c0 = rj["n"] - rj.get("cn", rj["n"])
         for st in rj["strategies"]:
+            st["n_trades"] = len(st["trades"])
+            # 页面只画最近 cn 根 K 线，只需要那段时间内还没平仓的交易；资金曲线已单独算好
             st["trades"] = [[t["pair"], t["side"], t["te"], t["tx"], t["entry"], t["exit"], t["pnl"], t["lev"],
-                             t["stop"], t["tp"], t["ki"], t["kx"]] for t in st["trades"]]
+                             t["stop"], t["tp"], t["ki"], t["kx"]] for t in st["trades"] if t["kx"] >= c0]
         replay = rj
     uni = json.loads((HERE / "universe.json").read_text()) if (HERE / "universe.json").exists() else None
     page = {"universe": uni, "meta": d["meta"], "champion": d["champion"], "species_champions": d["species_champions"],
