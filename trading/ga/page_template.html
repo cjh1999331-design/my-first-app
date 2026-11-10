@@ -505,7 +505,8 @@ document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click'
 }));
 document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
 document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
-document.getElementById('sim-note').textContent = D.live ? `持续进化模拟账户：从 ${D.live.start} 开始，模拟账户只由“上线组合”交易，组合每次换代时按当时价格全部平仓再由新组合接手；每一步只用当时已有的数据。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次）。止盈由每个策略自己的离场基因决定：移动止损不设止盈、固定止盈止损，或止盈加移动止损，展开持仓可以看到。没有真实下单。` : `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，每笔风险 ${(R.rules.risk * 100).toFixed(0)}%，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
+const riskTxt = () => (R.rules.risk_gene ? `每笔风险按策略自己的风险基因（不低于 ${(R.rules.min_risk * 100).toFixed(0)}%，最高 3%）` : `每笔风险 ${(R.rules.risk * 100).toFixed(0)}%`);
+document.getElementById('sim-note').textContent = D.live ? `持续进化模拟账户：从 ${D.live.start} 开始，模拟账户只由“上线组合”交易，组合每次换代时按当时价格全部平仓再由新组合接手；每一步只用当时已有的数据。规则：${R.rules.lev}x 逐仓，${riskTxt()}，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次）。止盈由每个策略自己的离场基因决定：移动止损不设止盈、固定止盈止损，或止盈加移动止损，展开持仓可以看到。没有真实下单。` : `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，${riskTxt()}，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
 const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}${s.tf_name ? ' · ' + s.tf_name : ''}`]); };
 
 function bars(tf) {
@@ -627,7 +628,7 @@ function renderPositions() {
   document.getElementById('pos-sum').replaceChildren(it('仓位', `${usd(notional)} USDT`), it('保证金', `${usd(margin)} USDT`), it('浮动盈亏', `${sUsd(fl)} USDT`, cls(fl)));
   document.getElementById('pos-list').replaceChildren(...(P.length ? P.slice(0, acc.posN).map((p) => rowEl(p.pair, p.side, `${sUsd(p.float)}`, cls(p.float), `仓位 ${usd(p.notional)} USDT · ${p.lev.toFixed(1)}x`, [
     el('div', { className: 'who' }, ['开仓策略 ', stratTag(p.sid)]), el('p', { className: 'rule', textContent: STRAT.get(p.sid).desc.split(' · ').slice(1).join(' · ') }),
-    el('div', { className: 'kv' }, [kv('开仓价', px(p.entry)), kv('最新价', px(p.last)), kv(p.tp === null ? '移动止损' : '止损', px(p.stop)), kv('止盈', p.tp === null ? '不设（移动止损）' : px(p.tp)), kv('保证金', `${usd(p.margin)} USDT`), kv('开仓时间', p.since.replace('T', ' ') + ' UTC')])]))
+    el('div', { className: 'kv' }, [kv('开仓价', px(p.entry)), kv('最新价', px(p.last)), kv(p.tp === null ? '移动止损' : '止损', px(p.stop)), kv('止盈', p.tp === null ? '不设（移动止损）' : px(p.tp)), ...(p.risk ? [kv('本单风险', `${p.risk}% 权益`)] : []), kv('保证金', `${usd(p.margin)} USDT`), kv('开仓时间', p.since.replace('T', ' ') + ' UTC')])]))
     : [el('p', { className: 'sub', textContent: '当前没有持仓' })]));
   const more = document.getElementById('pos-more'); more.hidden = P.length <= acc.posN; more.textContent = `显示全部 ${P.length} 个持仓`;
 }
@@ -637,7 +638,7 @@ function renderClosed() {
   document.getElementById('cl-sum').replaceChildren(it('已平仓', `${st.n.toLocaleString()} 笔`), it('胜率', `${Math.round(st.wins / st.n * 100)}%`), it('已实现', `${sUsd(st.realized)} USDT`, cls(st.realized)));
   document.getElementById('cl-list').replaceChildren(...C.slice(0, acc.clN).map((t) => rowEl(t.pair, t.side, `${sUsd(t.pnl)}`, cls(t.pnl), `${t.tx.slice(5).replace('T', ' ')} 平仓 · 仓位 ${usd(t.notional)} USDT`, [
     el('div', { className: 'who' }, ['开仓策略 ', stratTag(t.sid)]), el('p', { className: 'rule', textContent: STRAT.get(t.sid).desc.split(' · ').slice(1).join(' · ') }),
-    el('div', { className: 'kv' }, [kv('平仓原因', t.reason || '—'), kv('开仓价', px(t.entry)), kv('平仓价', px(t.exit)), kv('仓位', `${usd(t.notional)} USDT · ${t.lev}x`), kv('持仓时长', hm(t.te, t.tx)), kv('开仓时间', t.te.replace('T', ' ') + ' UTC'), kv('平仓时间', t.tx.replace('T', ' ') + ' UTC')])])));
+    el('div', { className: 'kv' }, [kv('平仓原因', t.reason || '—'), kv('开仓价', px(t.entry)), kv('平仓价', px(t.exit)), kv('仓位', `${usd(t.notional)} USDT · ${t.lev}x`), ...(t.risk ? [kv('本单风险', `${t.risk}% 权益`)] : []), kv('持仓时长', hm(t.te, t.tx)), kv('开仓时间', t.te.replace('T', ' ') + ' UTC'), kv('平仓时间', t.tx.replace('T', ' ') + ' UTC')])])));
   const more = document.getElementById('cl-more'); more.hidden = acc.clN >= C.length; more.textContent = `再显示 40 笔（页面保存了最近 ${C.length} 笔）`;
 }
 

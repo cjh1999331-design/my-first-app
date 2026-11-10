@@ -64,14 +64,14 @@ def main():
     prev = np.concatenate([[START_EQUITY], e4[:-1, -1]])
     ohlc = np.stack([prev, np.maximum(prev, e4.max(1)), np.minimum(prev, e4.min(1)), e4[:, -1]], 1)
     stats = {"n": len(closed), "wins": int(sum(t["pnl"] > 0 for t in closed)), "realized": round(sum(t["pnl"] for t in closed), 2)}
-    rules_d = {"risk": rules.risk, "lev": rules.lev, "max_pos": rules.per_strategy * len(ids), "per_strategy": rules.per_strategy, "max_notional": rules.max_notional,
+    rules_d = {"risk": rules.risk, "risk_gene": rules.use_gene_risk, "min_risk": rules.min_risk, "lev": rules.lev, "max_pos": rules.per_strategy * len(ids), "per_strategy": rules.per_strategy, "max_notional": rules.max_notional,
                "daily_stop": rules.daily_stop, "stops": [str(x)[:16] for x in run_portfolio.stops]}
     print(f"账户: {START_EQUITY} -> {eq_total[-1]:.2f}, 持仓 {len(positions)}, 平仓 {len(closed)}")
     for st in strategies:
         print("  ", st["id"], st["n_closed"], st["n_open"], st["pnl"])
 
     # 对照：同样的策略换成旧的保守规则（每笔 0.2%、5x、账户最多 25 个持仓、不停手）
-    old = PortfolioRules(start_equity=START_EQUITY, risk=0.002, lev=5.0, max_pos=25, per_strategy=999, daily_stop=0.0)
+    old = PortfolioRules(start_equity=START_EQUITY, use_gene_risk=False, risk=0.002, lev=5.0, max_pos=25, per_strategy=999, daily_stop=0.0)
     _, eq_old, _, _, _ = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, old)
     pk = np.maximum.accumulate(np.concatenate([[START_EQUITY], eq_old]))[1:]
     compare = {"label": "旧规则：每笔 0.2%、5x、最多 25 个持仓、不停手", "final": round(float(eq_old[-1]), 2),

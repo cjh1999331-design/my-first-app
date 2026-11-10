@@ -328,7 +328,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             sid = ids[t["si"]]
             closed.append({"pair": t["name"], "side": int(t["side"]), "sid": sid, "te": str(t["t_entry"])[:16],
                            "tx": str(t["t_exit"])[:16], "entry": sig(t["entry"]), "exit": sig(t["exit"]), "lev": rules.lev,
-                           "notional": round(t["qty"] * t["entry"], 2), "pnl": round(float(t["pnl"]), 2),
+                           "notional": round(t["qty"] * t["entry"], 2), "pnl": round(float(t["pnl"]), 2), "risk": round(t["risk"] * 100, 2),
                            "reason": t.get("reason", "")})
             strat_pnl[sid] = strat_pnl.get(sid, 0) + float(t["pnl"])
         last = k == len(st["segments"]) - 1
@@ -338,7 +338,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
                 fl = p["side"] * p["qty"] * (p["lc"] - p["entry"])
                 positions.append({"pair": p["name"], "side": int(p["side"]), "sid": sid, "since": str(p["t_entry"])[:16],
                                   "entry": sig(p["entry"]), "last": sig(p["lc"]), "lev": rules.lev,
-                                  "notional": round(p["qty"] * p["lc"], 2), "margin": round(p["margin"], 2),
+                                  "notional": round(p["qty"] * p["lc"], 2), "margin": round(p["margin"], 2), "risk": round(p["risk"] * 100, 2),
                                   "float": round(fl, 2), "stop": sig(p["stop"]), "tp": sig(p["tp"]) if np.isfinite(p["tp"]) else None})
                 strat_pnl[sid] = strat_pnl.get(sid, 0) + fl
         else:  # 换组合时按当时价格平仓
@@ -347,7 +347,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
                 pnl = p["side"] * p["qty"] * (p["lc"] - p["entry"])
                 closed.append({"pair": p["name"], "side": int(p["side"]), "sid": sid, "te": str(p["t_entry"])[:16],
                                "tx": str(t1)[:16], "entry": sig(p["entry"]), "exit": sig(p["lc"]), "lev": rules.lev,
-                               "notional": round(p["qty"] * p["entry"], 2), "pnl": round(pnl, 2), "reason": "换组合"})
+                               "notional": round(p["qty"] * p["entry"], 2), "pnl": round(pnl, 2), "risk": round(p["risk"] * 100, 2), "reason": "换组合"})
                 strat_pnl[sid] = strat_pnl.get(sid, 0) + pnl
         last_eq = float(eq[-1])
     closed.sort(key=lambda t: t["tx"], reverse=True)
@@ -365,7 +365,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             "bar_hours": 4, "start_equity": START_EQUITY, "strategies": strategies, "ohlc": ohlc,
             "positions": positions, "closed": closed[:300],
             "closed_stats": {"n": len(closed), "wins": sum(t["pnl"] > 0 for t in closed), "realized": round(sum(t["pnl"] for t in closed), 2)},
-            "rules": {"risk": rules.risk, "lev": rules.lev, "per_strategy": rules.per_strategy, "daily_stop": rules.daily_stop,
+            "rules": {"risk": rules.risk, "risk_gene": rules.use_gene_risk, "min_risk": rules.min_risk, "lev": rules.lev, "per_strategy": rules.per_strategy, "daily_stop": rules.daily_stop,
                       "max_pos": rules.per_strategy * TEAM_MAX, "max_notional": rules.max_notional, "stops": stops},
             "shuffle": {"finals": [], "dds": []}}
 

@@ -2,7 +2,7 @@
 一个量化账户：多个策略（可以是不同周期）共用同一个资金池，按最小周期逐步撮合。
 
 规则（可在 PortfolioRules 里改）：
-- 每笔风险：止损时最多亏当前账户权益的 risk（默认 1%），由此反推仓位大小
+- 每笔风险：止损时最多亏当前账户权益的 r，r = 策略自己的风险基因（1%~3%，不低于 min_risk），由此反推仓位大小
 - 逐仓保证金：统一 lev 倍（默认 10x），所有持仓保证金合计不超过账户权益的 95%
 - 日亏停手：账户权益比当天（UTC 0 点）开盘时亏损达到 daily_stop（默认 10%），立即平掉全部持仓，
   当天不再开仓，第二天 0 点恢复
@@ -25,7 +25,9 @@ from engine import FEE, FUNDING_PER_H, TF_HOURS, pick, signals
 @dataclass
 class PortfolioRules:
     start_equity: float = 1000.0
-    risk: float = 0.01
+    risk: float = 0.01              # use_gene_risk=False 时所有策略统一用这个
+    use_gene_risk: bool = True     # True：每个策略按自己的风险基因开仓
+    min_risk: float = 0.01         # 风险基因的下限
     lev: float = 10.0
     max_pos: int = 999            # 账户总持仓上限（默认不限，由每个策略的上限决定）
     per_strategy: int = 5
@@ -109,7 +111,8 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
             dist = g["stop_atr"] * d.atr[i]
             if not (dist > 0) or not np.isfinite(dist):
                 continue
-            notional = equity_now * rules.risk / dist * entry
+            r = max(float(g.get("risk", rules.risk)), rules.min_risk) if rules.use_gene_risk else rules.risk
+            notional = equity_now * r / dist * entry
             notional = min(notional, equity_now * rules.max_notional)
             used = sum(p["margin"] for p in open_pos.values())
             notional = min(notional, (equity_now * rules.margin_cap - used) * rules.lev)
@@ -119,7 +122,7 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
             cash -= notional * FEE
             ex = g.get("exit", "tp")
             trail = ex in ("trail", "tp_trail")
-            open_pos[name] = {"name": name, "si": si, "key": key, "side": side, "entry": entry, "qty": qty, "trail": trail, "dist": dist,
+            open_pos[name] = {"name": name, "si": si, "key": key, "side": side, "entry": entry, "qty": qty, "trail": trail, "dist": dist, "risk": r,
                               "margin": notional / rules.lev, "stop": entry - side * dist,
                               "tp": (np.inf * side) if ex == "trail" else entry + side * dist * g["tp_r"],
                               "e_j": j, "max_hold": int(g["max_hold"]), "t_entry": d.t[j], "lc": entry, "bar_h": d.bar_h}
