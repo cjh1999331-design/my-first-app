@@ -432,7 +432,7 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     G.TFS = args.tfs.split(",")
-    rules = PortfolioRules(risk_budget=0.10)
+    rules = PortfolioRules(use_gene_risk=False, risk=0.01, risk_budget=0.10)
     data = load_all(tfs=G.TFS)
     ref = data["1h"] if data.get("1h") else next(v for v in data.values() if v)
     last_bar = min(d.t[-1] for d in ref[:5]) + np.timedelta64(1, "h")

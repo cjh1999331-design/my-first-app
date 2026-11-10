@@ -54,7 +54,7 @@ COMMON = {
     "stop_atr": (0.8, 4.0, False),
     "tp_r": (0.8, 6.0, False),
     "max_hold": (4, 96, True),
-    "risk": (0.01, 0.03, False),     # 每笔风险 1%~3%，由进化决定
+    "risk": (0.01, 0.01, False),     # 每笔风险固定 1%：先只进化开仓和离场，证明能稳定赚钱再放开
 }
 SPECIFIC = {
     "vol_breakout": {"k": (1.2, 3.5, False)},
