@@ -505,7 +505,7 @@ document.querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click'
 }));
 document.getElementById('pos-more').addEventListener('click', () => { acc.posN = Infinity; renderPositions(); });
 document.getElementById('cl-more').addEventListener('click', () => { acc.clN += 40; renderClosed(); });
-const riskTxt = () => (R.rules.risk_gene ? `每笔风险按策略自己的风险基因（不低于 ${(R.rules.min_risk * 100).toFixed(0)}%，最高 3%）` : `每笔风险 ${(R.rules.risk * 100).toFixed(0)}%`);
+const riskTxt = () => (R.rules.risk_gene ? `每笔风险按策略自己的风险基因（不低于 ${(R.rules.min_risk * 100).toFixed(0)}%，最高 3%）` : `每笔风险 ${(R.rules.risk * 100).toFixed(0)}%`) + (R.rules.risk_budget ? `，全部持仓合计风险不超过 ${(R.rules.risk_budget * 100).toFixed(0)}%（止损已移到保本以上的不算）` : '');
 document.getElementById('sim-note').textContent = D.live ? `持续进化模拟账户：从 ${D.live.start} 开始，模拟账户只由“上线组合”交易，组合每次换代时按当时价格全部平仓再由新组合接手；每一步只用当时已有的数据。规则：${R.rules.lev}x 逐仓，${riskTxt()}，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次）。止盈由每个策略自己的离场基因决定：移动止损不设止盈、固定止盈止损，或止盈加移动止损，展开持仓可以看到。没有真实下单。` : `回放：假设 4 个物种冠军在训练期结束（${R.start.slice(0, 10)}）当天上线，共用一个 ${R.start_equity} USDT 账户，用 OKX 永续真实 K 线跑到 ${R.end.slice(0, 10)}，没有真实下单。规则：${R.rules.lev}x 逐仓，${riskTxt()}，每个策略最多 ${R.rules.per_strategy} 个持仓、同一个币不重复开，日亏 ${(R.rules.daily_stop * 100).toFixed(0)}% 全部平仓并停手到次日（共触发 ${R.rules.stops.length} 次），不设止盈、移动止损。真正的实时模拟盘需要一台在线服务器。`;
 const stratTag = (sid) => { const s = STRAT.get(sid); return el('span', { className: 'stag' }, [el('span', { className: 'dot', style: `background:var(--sp-${s.species})` }), `${sid} · ${SPN[s.species]}${s.tf_name ? ' · ' + s.tf_name : ''}`]); };
 

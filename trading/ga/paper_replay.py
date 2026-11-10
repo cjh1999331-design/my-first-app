@@ -36,7 +36,7 @@ def main():
     t_end = t0 + ((t_last - t0) // np.timedelta64(4, "h")) * np.timedelta64(4, "h")
     # 一个账户：4 个物种冠军共用同一个资金池（规则见 portfolio.py），训练期得分高的策略优先
     ids = sorted(dict.fromkeys(r["species_champions"]), key=lambda x: -I[x]["train"]["fit"])
-    rules = PortfolioRules(start_equity=START_EQUITY)
+    rules = PortfolioRules(start_equity=START_EQUITY, risk_budget=0.10)
     grid, eq_total, step_h, open_pos, closed_raw = run_portfolio([(i, I[i]["genes"]) for i in ids], data, t0, t_end, rules)
     tstr = lambda t: str(t)[:16]
     sig = lambda v: float(f"{float(v):.6g}")

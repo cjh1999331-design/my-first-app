@@ -369,7 +369,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             "positions": positions, "closed": closed[:300],
             "closed_stats": {"n": len(closed), "wins": sum(t["pnl"] > 0 for t in closed), "realized": round(sum(t["pnl"] for t in closed), 2)},
             "rules": {"risk": rules.risk, "risk_gene": rules.use_gene_risk, "min_risk": rules.min_risk, "lev": rules.lev, "per_strategy": rules.per_strategy, "daily_stop": rules.daily_stop,
-                      "max_pos": rules.per_strategy * TEAM_MAX, "max_notional": rules.max_notional, "stops": stops},
+                      "max_pos": rules.per_strategy * TEAM_MAX, "max_notional": rules.max_notional, "risk_budget": rules.risk_budget, "stops": stops},
             "shuffle": {"finals": [], "dds": []}, "margin": margin_stats(mus, nps, rules)}
 
 
@@ -432,7 +432,7 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     G.TFS = args.tfs.split(",")
-    rules = PortfolioRules()
+    rules = PortfolioRules(risk_budget=0.10)
     data = load_all(tfs=G.TFS)
     ref = data["1h"] if data.get("1h") else next(v for v in data.values() if v)
     last_bar = min(d.t[-1] for d in ref[:5]) + np.timedelta64(1, "h")

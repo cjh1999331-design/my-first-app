@@ -155,9 +155,13 @@ def fold_edges(t0: str, t1: str, k: int):
     return [(a + step * i, a + step * (i + 1)) for i in range(k)]
 
 
+DD_FREE, DD_SCALE = 15.0, 15.0     # 单段回撤 15% 以内不扣分，每多 15% 扣 1 分
+
+
 def fold_score(m: dict) -> float:
-    """单段得分：年化收益 / 回撤，截断到 [-3, 3]，避免某一段的极端值主导。"""
-    return float(np.clip(m["fit"], -3, 3))
+    """单段得分：年化收益 / 回撤，截断到 [-3, 3]，避免某一段的极端值主导。
+    回撤超过 DD_FREE（%）的部分额外扣分，否则进化会一味把风险基因推到上限（多个策略同账户时风险会叠加）。"""
+    return float(np.clip(m["fit"], -3, 3)) - max(0.0, m["dd"] - DD_FREE) / DD_SCALE
 
 
 def robust_eval(genes, data, folds, stress_fee, sigs=None, weights=None):
