@@ -93,6 +93,7 @@ def random_genes(sp):
 def distance(a, b) -> float:
     """两个同物种个体的基因距离：数值基因按范围归一化取平均，周期 / 方向 / 趋势过滤不同各加一点。"""
     keys = {**COMMON, **SPECIFIC[a["species"]]}
+    keys = {k: v for k, v in keys.items() if v[1] > v[0]}       # 固定不变的基因（如风险）不算距离
     d = sum(abs(a[k] - b[k]) / (hi - lo) for k, (lo, hi, _) in keys.items()) / len(keys)
     return (d + 0.3 * (a.get("tf") != b.get("tf")) + 0.2 * (a["dir"] != b["dir"]) + 0.1 * (a["trend"] != b["trend"])
             + 0.2 * (a.get("exit") != b.get("exit")))
