@@ -306,6 +306,7 @@ def account_equity(st, data, t, rules):
 def build_account(st, data, now, rules: PortfolioRules) -> dict:
     """把各段上线组合的交易拼成一个账户，输出页面用的格式（与 paper_replay 一致）。"""
     ohlc, closed, positions, stops, last_eq = [], [], [], [], START_EQUITY
+    mus, nps = [], []
     sig = lambda v: float(f"{float(v):.6g}")
     strat_pnl = {}
     for k, seg in enumerate(st["segments"]):
@@ -316,6 +317,8 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             continue
         grid, eq, step_h, open_pos, closed_raw = r
         stops += [str(x)[:16] for x in run_portfolio.stops]
+        mus.append(run_portfolio.margin)
+        nps.append(run_portfolio.npos)
         if step_h > 4:          # 组合里只有日线策略时按天记账，展开成 4 小时
             eq = np.repeat(eq, int(round(step_h / 4)))
             step_h = 4
@@ -367,7 +370,17 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
             "closed_stats": {"n": len(closed), "wins": sum(t["pnl"] > 0 for t in closed), "realized": round(sum(t["pnl"] for t in closed), 2)},
             "rules": {"risk": rules.risk, "risk_gene": rules.use_gene_risk, "min_risk": rules.min_risk, "lev": rules.lev, "per_strategy": rules.per_strategy, "daily_stop": rules.daily_stop,
                       "max_pos": rules.per_strategy * TEAM_MAX, "max_notional": rules.max_notional, "stops": stops},
-            "shuffle": {"finals": [], "dds": []}}
+            "shuffle": {"finals": [], "dds": []}, "margin": margin_stats(mus, nps, rules)}
+
+
+def margin_stats(mus, nps, rules):
+    if not mus:
+        return None
+    m, n = np.concatenate(mus), np.concatenate(nps)
+    return {"avg": round(float(m.mean()) * 100, 1), "p90": round(float(np.percentile(m, 90)) * 100, 1),
+            "max": round(float(m.max()) * 100, 1), "cap": rules.margin_cap * 100,
+            "at_cap": round(float((m >= rules.margin_cap - 0.02).mean()) * 100, 1),
+            "pos_avg": round(float(n.mean()), 1), "pos_max": int(n.max())}
 
 
 def act_tf(st, sid):
@@ -407,6 +420,7 @@ def main():
     ap.add_argument("--start", default="2025-06-01", help="simulate：从哪天开始")
     ap.add_argument("--end", default=None, help="simulate：到哪天结束（默认数据最后一天）")
     ap.add_argument("--step-days", type=int, default=7)
+    ap.add_argument("--resume", action="store_true", help="simulate：从 state.json 里上次走到的日期继续")
     ap.add_argument("--probation", type=int, default=28, help="挑战者考核天数")
     ap.add_argument("--per-species", type=int, default=30)
     ap.add_argument("--elite", type=int, default=4)
@@ -427,10 +441,15 @@ def main():
     st = load_state(path)
 
     if args.mode == "simulate":
-        st = new_state(args)                      # 模拟总是从头开始
-        now = d64(args.start)
         end = d64(args.end) if args.end else data_end
-        first = True
+        if args.resume and st and st.get("now"):  # 接着上次中断的地方继续
+            now = d64(st["now"]) + args.step_days * DAY
+            first = False
+            print(f"从 {str(now)[:10]} 继续（第 {st['gen']} 代）", flush=True)
+        else:
+            st = new_state(args)                  # 默认从头开始
+            now = d64(args.start)
+            first = True
         while now <= end:
             step(st, data, now, args.init_gens if first else args.gens, args.workers, rules)
             first = False

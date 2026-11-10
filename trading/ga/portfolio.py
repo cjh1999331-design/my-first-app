@@ -90,7 +90,9 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
     day = None
     day_start = rules.start_equity
     paused = False
-    stops = []                        # 触发日亏停手的时间
+    stops = []
+    mu = np.zeros(ng)
+    npos = np.zeros(ng, int)                        # 触发日亏停手的时间
     for gi in range(ng):
         equity_now = cash + floating
         d_now = grid[gi].astype("datetime64[D]")
@@ -176,5 +178,9 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
             paused = True
             stops.append(grid[gi])
         eq[gi] = cash + floating
+        mu[gi] = sum(p["margin"] for p in open_pos.values()) / eq[gi] if eq[gi] > 0 else 0.0
+        npos[gi] = len(open_pos)
     run_portfolio.stops = stops
+    run_portfolio.margin = mu           # 每一步：保证金占用 / 权益
+    run_portfolio.npos = npos
     return grid, eq, step_h, list(open_pos.values()), closed

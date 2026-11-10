@@ -539,6 +539,8 @@ function renderAccount() {
   const sh = R.shuffle && R.shuffle.finals.length ? R.shuffle : null;
   const cmp = R.compare ? ` 对照：同样的策略用${R.compare.label.replace('旧规则：', '旧规则（')}）最终 ${usd(R.compare.final)} USDT，最大回撤 ${R.compare.dd}%。` : '';
   document.getElementById('shuffle').textContent = (sh ? `稳健性：把同一时刻的开仓顺序随机打乱 ${sh.finals.length} 次，最终权益中位数 ${usd(d3.median(sh.finals))} USDT，范围 ${usd(d3.min(sh.finals))} ~ ${usd(d3.max(sh.finals))}；最大回撤中位数 ${d3.median(sh.dds).toFixed(1)}%。上面的数字只是其中一种顺序。` : '') + cmp;
+  const mg = R.margin;
+  if (mg) document.getElementById('shuffle').textContent += ` 保证金占用：平均 ${mg.avg}% 权益，90% 的时间不超过 ${mg.p90}%，最高 ${mg.max}%（上限 ${mg.cap}%），${mg.at_cap}% 的时间顶在上限；同时持仓平均 ${mg.pos_avg} 个，最多 ${mg.pos_max} 个。`;
   drawEK(); renderPositions(); renderClosed();
 }
 
