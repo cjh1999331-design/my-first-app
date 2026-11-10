@@ -339,7 +339,7 @@ def build_account(st, data, now, rules: PortfolioRules) -> dict:
                 positions.append({"pair": p["name"], "side": int(p["side"]), "sid": sid, "since": str(p["t_entry"])[:16],
                                   "entry": sig(p["entry"]), "last": sig(p["lc"]), "lev": rules.lev,
                                   "notional": round(p["qty"] * p["lc"], 2), "margin": round(p["margin"], 2),
-                                  "float": round(fl, 2), "stop": sig(p["stop"]), "tp": None if p["trail"] else sig(p["tp"])})
+                                  "float": round(fl, 2), "stop": sig(p["stop"]), "tp": sig(p["tp"]) if np.isfinite(p["tp"]) else None})
                 strat_pnl[sid] = strat_pnl.get(sid, 0) + fl
         else:  # 换组合时按当时价格平仓
             for p in open_pos:

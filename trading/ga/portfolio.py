@@ -6,7 +6,7 @@
 - 逐仓保证金：统一 lev 倍（默认 10x），所有持仓保证金合计不超过账户权益的 95%
 - 日亏停手：账户权益比当天（UTC 0 点）开盘时亏损达到 daily_stop（默认 10%），立即平掉全部持仓，
   当天不再开仓，第二天 0 点恢复
-- 盈利不设上限：基因 exit="trail" 的策略没有止盈，止损随价格移动
+- 离场方式由基因 exit 决定：trail = 移动止损、不设止盈；tp = 固定止损 + 固定止盈；tp_trail = 移动止损 + 止盈
 - 每个策略最多同时 per_strategy 个持仓（默认 5）；一个币已经有持仓（不管哪个策略开的）就不重复开；
   单笔名义仓位不超过账户权益 × max_notional
 - 同一时刻多个信号时，按策略优先级（训练期得分高的在前）依次处理
@@ -117,10 +117,11 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
                 continue
             qty = notional / entry
             cash -= notional * FEE
-            trail = g.get("exit", "tp") == "trail"
+            ex = g.get("exit", "tp")
+            trail = ex in ("trail", "tp_trail")
             open_pos[name] = {"name": name, "si": si, "key": key, "side": side, "entry": entry, "qty": qty, "trail": trail, "dist": dist,
                               "margin": notional / rules.lev, "stop": entry - side * dist,
-                              "tp": (np.inf * side) if trail else entry + side * dist * g["tp_r"],
+                              "tp": (np.inf * side) if ex == "trail" else entry + side * dist * g["tp_r"],
                               "e_j": j, "max_hold": int(g["max_hold"]), "t_entry": d.t[j], "lc": entry, "bar_h": d.bar_h}
         # 2) 在各自周期的 K 线收盘时检查止损 / 止盈 / 到期
         for name in list(open_pos):

@@ -244,8 +244,9 @@ def backtest(g: dict, data: list[PairData], t0: np.datetime64, t1: np.datetime64
             if qty * entry > E * MAX_LEV:
                 qty = E * MAX_LEV / entry
             stop = entry - side * dist
-            trail = g.get("exit", "tp") == "trail"          # trail：不设止盈，止损跟随最高/最低价移动
-            tp = np.inf * side if trail else entry + side * dist * g["tp_r"]
+            ex = g.get("exit", "tp")                          # trail：不设止盈；tp：固定止盈；tp_trail：止盈 + 移动止损
+            trail = ex in ("trail", "tp_trail")
+            tp = np.inf * side if ex == "trail" else entry + side * dist * g["tp_r"]
             j = e_i
             last = min(i1 - 1, e_i + int(g["max_hold"]))
             exit_p = None

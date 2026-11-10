@@ -67,7 +67,7 @@ SPECIFIC = {
 TREND_CHOICES = [0, 50, 100, 150, 200, 300]
 DIRS = ["long", "short", "both"]
 TFS = ["15m", "1h", "4h", "1d"]   # 周期基因；--tfs 可以限制
-EXIT = "trail"                     # 新个体的离场方式：trail = 不设止盈、移动止损
+EXITS = ["trail", "tp", "tp_trail"]  # 离场基因：移动止损不设止盈 / 固定止盈止损 / 止盈 + 移动止损，由进化决定
 
 
 def clamp(v, lo, hi, is_int):
@@ -84,7 +84,7 @@ def fix(g):
 
 
 def random_genes(sp):
-    g = {"species": sp, "tf": random.choice(TFS), "exit": EXIT, "dir": random.choice(DIRS), "trend": random.choice(TREND_CHOICES)}
+    g = {"species": sp, "tf": random.choice(TFS), "exit": random.choice(EXITS), "dir": random.choice(DIRS), "trend": random.choice(TREND_CHOICES)}
     for k, (lo, hi, it) in {**COMMON, **SPECIFIC[sp]}.items():
         g[k] = clamp(random.uniform(lo, hi), lo, hi, it)
     return fix(g)
@@ -94,7 +94,8 @@ def distance(a, b) -> float:
     """两个同物种个体的基因距离：数值基因按范围归一化取平均，周期 / 方向 / 趋势过滤不同各加一点。"""
     keys = {**COMMON, **SPECIFIC[a["species"]]}
     d = sum(abs(a[k] - b[k]) / (hi - lo) for k, (lo, hi, _) in keys.items()) / len(keys)
-    return d + 0.3 * (a.get("tf") != b.get("tf")) + 0.2 * (a["dir"] != b["dir"]) + 0.1 * (a["trend"] != b["trend"])
+    return (d + 0.3 * (a.get("tf") != b.get("tf")) + 0.2 * (a["dir"] != b["dir"]) + 0.1 * (a["trend"] != b["trend"])
+            + 0.2 * (a.get("exit") != b.get("exit")))
 
 
 def mutate(p, strength=0.18):
@@ -108,6 +109,8 @@ def mutate(p, strength=0.18):
         g["trend"] = random.choice(TREND_CHOICES)
     if random.random() < 0.12:
         g["tf"] = random.choice(TFS)
+    if random.random() < 0.12:
+        g["exit"] = random.choice(EXITS)
     return fix(g)
 
 
@@ -139,8 +142,9 @@ def describe(g):
     tf = g.get("tf", "1h")
     hold_h = g["max_hold"] * TF_HOURS[tf]
     hold = f"{hold_h / 24:.1f} 天" if hold_h >= 48 else f"{hold_h:g} 小时"
-    exit_txt = (f"移动止损 {g['stop_atr']}×ATR · 不设止盈" if g.get("exit") == "trail"
-                else f"止损 {g['stop_atr']}×ATR · 止盈 {g['tp_r']}R")
+    ex = g.get("exit", "tp")
+    exit_txt = {"trail": f"移动止损 {g['stop_atr']}×ATR · 不设止盈",
+                "tp_trail": f"移动止损 {g['stop_atr']}×ATR · 止盈 {g['tp_r']}R"}.get(ex, f"止损 {g['stop_atr']}×ATR · 止盈 {g['tp_r']}R")
     return (f"{SPECIES[sp]} · {TF_NAME[tf]} · {core}{trend} · {d} · {exit_txt}"
             f" · 最长 {g['max_hold']} 根（{hold}） · 风险 {round(g['risk'] * 100, 2)}%")
 

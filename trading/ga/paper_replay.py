@@ -46,7 +46,7 @@ def main():
         positions.append({"pair": p["name"], "side": int(p["side"]), "sid": ids[p["si"]], "since": tstr(p["t_entry"]),
                           "entry": sig(p["entry"]), "last": sig(lc), "lev": rules.lev, "notional": round(p["qty"] * lc, 2),
                           "margin": round(p["margin"], 2), "float": round(p["side"] * p["qty"] * (lc - p["entry"]), 2),
-                          "stop": sig(p["stop"]), "tp": None if p["trail"] else sig(p["tp"])})
+                          "stop": sig(p["stop"]), "tp": sig(p["tp"]) if np.isfinite(p["tp"]) else None})
     positions.sort(key=lambda p: -p["notional"])
     closed = [{"pair": t["name"], "side": int(t["side"]), "sid": ids[t["si"]], "te": tstr(t["t_entry"]), "tx": tstr(t["t_exit"]),
                "entry": sig(t["entry"]), "exit": sig(t["exit"]), "lev": rules.lev, "notional": round(t["qty"] * t["entry"], 2),
