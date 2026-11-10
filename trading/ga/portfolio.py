@@ -34,6 +34,7 @@ class PortfolioRules:
     daily_stop: float = 0.10
     max_notional: float = 1.0
     margin_cap: float = 0.95
+    risk_budget: float | None = None   # 账户总风险上限：所有持仓止损时合计最多亏权益的这个比例（None 不限）
     min_notional: float = 5.0
     order_seed: int | None = None   # None：同一时刻按成交额排名开仓；整数：随机打乱币的优先顺序（检验结果对顺序是否敏感）
 
@@ -114,6 +115,12 @@ def run_portfolio(strats: list[tuple[str, dict]], data, t0, t_end, rules: Portfo
             if not (dist > 0) or not np.isfinite(dist):
                 continue
             r = max(float(g.get("risk", rules.risk)), rules.min_risk) if rules.use_gene_risk else rules.risk
+            if rules.risk_budget:
+                # 已经把止损移到保本以上的持仓不再占风险
+                at_risk = sum(p["risk"] for p in open_pos.values() if p["side"] * (p["stop"] - p["entry"]) < 0)
+                r = min(r, rules.risk_budget - at_risk)
+                if r < rules.min_risk * 0.5:
+                    continue
             notional = equity_now * r / dist * entry
             notional = min(notional, equity_now * rules.max_notional)
             used = sum(p["margin"] for p in open_pos.values())
